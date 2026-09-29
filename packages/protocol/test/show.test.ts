@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newId, ShowSchema, type Show } from "../src/index.js";
+import { newId, ShowSchema, slideSequence, type Show } from "../src/index.js";
 import { makeShow } from "./fixtures.js";
 
 function messages(show: unknown): string[] {
@@ -102,5 +102,30 @@ describe("ShowSchema", () => {
       ],
     };
     expect(messages(show)).not.toEqual([]);
+  });
+});
+
+describe("slideSequence", () => {
+  const slide = (id: string, group?: string) => ({
+    id,
+    fields: {},
+    ...(group === undefined ? {} : { group }),
+  });
+
+  it("senza arrangiamento segue l'ordine delle slide", () => {
+    const slides = [slide("a"), slide("b")];
+    expect(slideSequence({ slides }).map((s) => s.id)).toEqual(["a", "b"]);
+  });
+
+  it("con l'arrangiamento ripete i gruppi nell'ordine scelto", () => {
+    const slides = [slide("s1a", "S1"), slide("s1b", "S1"), slide("rit", "RIT"), slide("s2", "S2")];
+    const arrangement = ["S1", "RIT", "S2", "RIT"];
+    expect(slideSequence({ slides, arrangement }).map((s) => s.id)).toEqual([
+      "s1a",
+      "s1b",
+      "rit",
+      "s2",
+      "rit",
+    ]);
   });
 });

@@ -60,6 +60,17 @@ export const ItemSchema = z.strictObject({
 });
 export type Item = z.infer<typeof ItemSchema>;
 
+/**
+ * Slide nell'ordine in cui si proiettano: l'arrangiamento se c'e' (un gruppo
+ * puo' ripetersi, es. il ritornello), altrimenti l'ordine delle slide. Gli
+ * indici di slide dello stato live (cursore, anteprima, layer) si riferiscono
+ * a questa sequenza.
+ */
+export function slideSequence(item: Pick<Item, "slides" | "arrangement">): Slide[] {
+  if (item.arrangement === undefined) return item.slides;
+  return item.arrangement.flatMap((group) => item.slides.filter((s) => s.group === group));
+}
+
 export const AudienceSchema = z.enum(["all", "room", "stream"]);
 export type Audience = z.infer<typeof AudienceSchema>;
 
