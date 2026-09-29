@@ -1,0 +1,93 @@
+/*
+ * Classi di base per i pannelli dei moduli: stesso aspetto della postazione
+ * anche senza framework. Richiede tokens.css e fonts.css.
+ */
+
+.cl-root {
+  background: var(--cl-bg);
+  color: var(--cl-fg);
+  font-family: var(--cl-body);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.cl-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cl-muted);
+  font-weight: 600;
+}
+
+.cl-panel {
+  background: var(--cl-bg-2);
+  border: 1px solid var(--cl-line);
+  border-radius: 10px;
+}
+
+.cl-btn {
+  font: inherit;
+  font-weight: 600;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--cl-line-2);
+  background: var(--cl-bg-3);
+  color: var(--cl-fg);
+  cursor: pointer;
+}
+
+.cl-btn:hover {
+  border-color: var(--cl-faint);
+}
+
+.cl-btn:focus-visible,
+.cl-input:focus-visible {
+  outline: 2px solid var(--cl-cue);
+  outline-offset: 2px;
+}
+
+.cl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cl-btn--live {
+  background: var(--cl-live);
+  border-color: var(--cl-live);
+  color: var(--cl-live-ink);
+}
+
+.cl-btn--cue {
+  background: var(--cl-cue);
+  border-color: var(--cl-cue);
+  color: var(--cl-cue-ink);
+}
+
+.cl-input {
+  font: inherit;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--cl-line-2);
+  background: var(--cl-bg);
+  color: var(--cl-fg);
+}
+
+.cl-tag {
+  display: inline-block;
+  font: 700 10px var(--cl-mono);
+  letter-spacing: 0.1em;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+
+.cl-tag--live {
+  background: var(--cl-live);
+  color: var(--cl-live-ink);
+}
+
+.cl-tag--cue {
+  background: var(--cl-cue);
+  color: var(--cl-cue-ink);
+}
