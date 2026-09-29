@@ -1,0 +1,61 @@
+{
+  "$id": "https://cuelith.github.io/cuelith-sdk/schema/layout-1.json",
+  "title": "Layout di una modalita' di Cuelith",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "columns": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?:\\d+(?:\\.\\d+)?fr|\\d+px|auto|minmax\\(\\s*\\d+px\\s*,\\s*\\d+(?:\\.\\d+)?fr\\s*\\))$"
+      }
+    },
+    "rows": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?:\\d+(?:\\.\\d+)?fr|\\d+px|auto|minmax\\(\\s*\\d+px\\s*,\\s*\\d+(?:\\.\\d+)?fr\\s*\\))$"
+      }
+    },
+    "areas": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-zA-Z0-9]*$"
+            },
+            {
+              "type": "string",
+              "const": "."
+            }
+          ]
+        }
+      }
+    },
+    "panels": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-zA-Z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:\\.[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)+$"
+      }
+    }
+  },
+  "required": [
+    "columns",
+    "rows",
+    "areas",
+    "panels"
+  ],
+  "additionalProperties": false
+}

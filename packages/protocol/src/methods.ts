@@ -1,0 +1,426 @@
+import { z } from "zod";
+import { IdSchema, PluginIdSchema, ProviderSchema, QualifiedTypeSchema } from "./ids.js";
+import {
+  ClientKindSchema,
+  DisplayInfoSchema,
+  PluginStatusSchema,
+  StateDocumentSchema,
+} from "./live.js";
+import { CatalogSchema, LangSchema } from "./locale.js";
+import { PluginManifestSchema } from "./plugin.js";
+import { RoleIdSchema, type Scope } from "./roles.js";
+import {
+  AudienceSchema,
+  FeedSchema,
+  FieldSchema,
+  LayerIdSchema,
+  MediaRefSchema,
+  OutputFormatSchema,
+  OutputKindSchema,
+  SceneElementSchema,
+} from "./show.js";
+
+// Ogni metodo del protocollo e' dichiarato una volta sola qui: nome, ambito
+// (per i ruoli), parametri e risultato. Motore, postazione e SDK usano
+// questo stesso elenco (cap. 18: una modifica al protocollo aggiorna tutti).
+
+interface MethodSpec<P extends z.ZodType = z.ZodType, R extends z.ZodType = z.ZodType> {
+  readonly scope: Scope;
+  readonly params: P;
+  readonly result: R;
+}
+
+const spec = <P extends z.ZodType, R extends z.ZodType>(
+  scope: Scope,
+  params: P,
+  result: R,
+): MethodSpec<P, R> => ({
+  scope,
+  params,
+  result,
+});
+
+const Empty = z.strictObject({});
+const Rev = z.strictObject({ rev: z.number().int().nonnegative() });
+const Created = z.strictObject({ id: IdSchema, rev: z.number().int().nonnegative() });
+const Index = z.number().int().nonnegative();
+const Params = z.record(z.string(), z.unknown());
+
+export const SlideInputSchema = z.strictObject({
+  fields: z.record(z.string().min(1), FieldSchema),
+  group: z.string().min(1).optional(),
+  media: MediaRefSchema.optional(),
+  background: MediaRefSchema.optional(),
+});
+export type SlideInput = z.infer<typeof SlideInputSchema>;
+
+export const TransitionSchema = z.strictObject({
+  type: z.enum(["cut", "fade"]),
+  durationMs: z.number().int().min(0).max(10_000),
+});
+export type Transition = z.infer<typeof TransitionSchema>;
+
+export const InstalledPluginSchema = z.strictObject({
+  manifest: PluginManifestSchema,
+  status: PluginStatusSchema,
+  /** Installato insieme al nucleo (es. la lingua italiana). */
+  bundled: z.boolean(),
+  /** Vero se non si puo' disattivare, es. l'unica lingua installata. */
+  required: z.boolean(),
+});
+export type InstalledPlugin = z.infer<typeof InstalledPluginSchema>;
+
+/** Metodi del motore, chiamabili da postazioni e moduli secondo il ruolo. */
+export const EngineMethods = {
+  // ---- sessione ----
+  "session.hello": spec(
+    "session",
+    z.strictObject({
+      protocol: z.string().min(1),
+      client: z.strictObject({ name: z.string().min(1), kind: ClientKindSchema }),
+    }),
+    z.strictObject({
+      protocol: z.string(),
+      engine: z.strictObject({ version: z.string() }),
+      sessionId: z.string(),
+    }),
+  ),
+  "session.pair": spec(
+    "session",
+    z.strictObject({
+      code: z.string().regex(/^\d{6}$/, "protocol.pair.codeInvalid"),
+      name: z.string().min(1),
+    }),
+    z.strictObject({ token: z.string().min(32), clientId: z.string(), role: RoleIdSchema }),
+  ),
+  "session.auth": spec(
+    "session",
+    z.strictObject({ token: z.string().min(32) }),
+    z.strictObject({ clientId: z.string(), role: RoleIdSchema }),
+  ),
+  "pairing.start": spec(
+    "admin",
+    z.strictObject({ role: RoleIdSchema }),
+    z.strictObject({ code: z.string().regex(/^\d{6}$/), expiresAt: z.iso.datetime() }),
+  ),
+  "session.revoke": spec("admin", z.strictObject({ clientId: z.string().min(1) }), Empty),
+
+  // ---- lettura ----
+  "state.subscribe": spec(
+    "read",
+    Empty,
+    z.strictObject({ rev: z.number().int().nonnegative(), state: StateDocumentSchema }),
+  ),
+  "display.list": spec("read", Empty, z.strictObject({ displays: z.array(DisplayInfoSchema) })),
+  "locale.list": spec(
+    "read",
+    Empty,
+    z.strictObject({
+      langs: z.array(z.strictObject({ lang: LangSchema, name: z.string() })),
+      active: LangSchema,
+    }),
+  ),
+  "locale.catalog": spec(
+    "read",
+    z.strictObject({ lang: LangSchema }),
+    z.strictObject({ catalog: CatalogSchema }),
+  ),
+  "plugin.list": spec("read", Empty, z.strictObject({ plugins: z.array(InstalledPluginSchema) })),
+
+  // ---- regia della presentazione ----
+  "cue.next": spec("cue", Empty, Rev),
+  "cue.prev": spec("cue", Empty, Rev),
+  "cue.goto": spec("cue", z.strictObject({ entryId: IdSchema, slideIndex: Index }), Rev),
+  /** Manda in programma cio' che e' in anteprima. */
+  "cue.take": spec("cue", Empty, Rev),
+  "preview.set": spec("cue", z.strictObject({ entryId: IdSchema, slideIndex: Index }), Rev),
+  "layer.clear": spec("cue", z.strictObject({ layer: LayerIdSchema }), Rev),
+  "message.send": spec("cue", z.strictObject({ outputId: IdSchema, text: z.string() }), Rev),
+
+  // ---- comandi delle uscite ----
+  "output.setFeed": spec(
+    "output.control",
+    z.strictObject({ outputId: IdSchema, feed: FeedSchema }),
+    Rev,
+  ),
+  "output.blackout": spec(
+    "output.control",
+    z.strictObject({ outputId: IdSchema, on: z.boolean() }),
+    Rev,
+  ),
+  "output.freeze": spec(
+    "output.control",
+    z.strictObject({ outputId: IdSchema, on: z.boolean() }),
+    Rev,
+  ),
+  "scene.activate": spec(
+    "output.control",
+    z.strictObject({
+      outputId: IdSchema,
+      sceneId: IdSchema,
+      transition: TransitionSchema.optional(),
+    }),
+    Rev,
+  ),
+
+  // ---- configurazione delle uscite ----
+  "output.create": spec(
+    "output.config",
+    z.strictObject({
+      name: z.string().min(1),
+      kind: OutputKindSchema,
+      provider: ProviderSchema,
+      target: Params,
+      format: OutputFormatSchema,
+      feed: FeedSchema,
+      owner: RoleIdSchema.optional(),
+    }),
+    Created,
+  ),
+  "output.update": spec(
+    "output.config",
+    z.strictObject({
+      id: IdSchema,
+      name: z.string().min(1).optional(),
+      target: Params.optional(),
+      format: OutputFormatSchema.optional(),
+      feed: FeedSchema.optional(),
+      owner: RoleIdSchema.nullable().optional(),
+    }),
+    Rev,
+  ),
+  "output.delete": spec("output.config", z.strictObject({ id: IdSchema }), Rev),
+
+  // ---- modifica dello show ----
+  "item.create": spec(
+    "edit",
+    z.strictObject({
+      type: QualifiedTypeSchema,
+      title: z.string(),
+      slides: z.array(SlideInputSchema).optional(),
+      meta: Params.optional(),
+    }),
+    Created,
+  ),
+  "item.update": spec(
+    "edit",
+    z.strictObject({
+      id: IdSchema,
+      title: z.string().optional(),
+      arrangement: z.array(z.string().min(1)).nullable().optional(),
+      meta: Params.optional(),
+    }),
+    Rev,
+  ),
+  "item.delete": spec("edit", z.strictObject({ id: IdSchema }), Rev),
+  "slide.insert": spec(
+    "edit",
+    z.strictObject({ itemId: IdSchema, index: Index.optional(), slide: SlideInputSchema }),
+    Created,
+  ),
+  "slide.update": spec(
+    "edit",
+    z.strictObject({
+      itemId: IdSchema,
+      slideId: IdSchema,
+      fields: z.record(z.string().min(1), FieldSchema).optional(),
+      group: z.string().min(1).nullable().optional(),
+      media: MediaRefSchema.nullable().optional(),
+      background: MediaRefSchema.nullable().optional(),
+    }),
+    Rev,
+  ),
+  "slide.delete": spec("edit", z.strictObject({ itemId: IdSchema, slideId: IdSchema }), Rev),
+  "slide.move": spec(
+    "edit",
+    z.strictObject({ itemId: IdSchema, slideId: IdSchema, toIndex: Index }),
+    Rev,
+  ),
+  "playlist.add": spec(
+    "edit",
+    z.strictObject({
+      itemId: IdSchema,
+      index: Index.optional(),
+      audience: AudienceSchema.optional(),
+    }),
+    Created,
+  ),
+  "playlist.remove": spec("edit", z.strictObject({ entryId: IdSchema }), Rev),
+  "playlist.move": spec("edit", z.strictObject({ entryId: IdSchema, toIndex: Index }), Rev),
+  "playlist.setAudience": spec(
+    "edit",
+    z.strictObject({ entryId: IdSchema, audience: AudienceSchema.nullable() }),
+    Rev,
+  ),
+  "look.create": spec(
+    "edit",
+    z.strictObject({
+      name: z.string().min(1),
+      sourceType: QualifiedTypeSchema,
+      fields: z.array(z.string().min(1)),
+      layers: z.array(LayerIdSchema),
+      template: QualifiedTypeSchema,
+      style: Params,
+    }),
+    Created,
+  ),
+  "look.update": spec(
+    "edit",
+    z.strictObject({
+      id: IdSchema,
+      name: z.string().min(1).optional(),
+      fields: z.array(z.string().min(1)).optional(),
+      layers: z.array(LayerIdSchema).optional(),
+      template: QualifiedTypeSchema.optional(),
+      style: Params.optional(),
+    }),
+    Rev,
+  ),
+  "look.delete": spec("edit", z.strictObject({ id: IdSchema }), Rev),
+  "scene.create": spec(
+    "edit",
+    z.strictObject({ name: z.string().min(1), elements: z.array(SceneElementSchema).optional() }),
+    Created,
+  ),
+  "scene.update": spec(
+    "edit",
+    z.strictObject({
+      id: IdSchema,
+      name: z.string().min(1).optional(),
+      elements: z.array(SceneElementSchema).optional(),
+    }),
+    Rev,
+  ),
+  "scene.delete": spec("edit", z.strictObject({ id: IdSchema }), Rev),
+
+  // ---- file dello show ----
+  "show.new": spec("show", z.strictObject({ name: z.string().min(1) }), Rev),
+  "show.open": spec("show", z.strictObject({ path: z.string().min(1) }), Rev),
+  "show.save": spec(
+    "show",
+    z.strictObject({ path: z.string().min(1).optional() }),
+    z.strictObject({ path: z.string(), rev: z.number().int().nonnegative() }),
+  ),
+  "show.rename": spec("show", z.strictObject({ name: z.string().min(1) }), Rev),
+
+  // ---- moduli ----
+  "plugin.install": spec(
+    "plugins",
+    z.strictObject({ path: z.string().min(1) }),
+    z.strictObject({ id: PluginIdSchema, version: z.string() }),
+  ),
+  "plugin.uninstall": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
+  "plugin.enable": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
+  "plugin.disable": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
+  "plugin.command": spec(
+    "plugin.command",
+    z.strictObject({
+      pluginId: PluginIdSchema,
+      command: z.string().min(1),
+      params: Params.optional(),
+    }),
+    z.strictObject({ result: z.unknown() }),
+  ),
+
+  // ---- solo per i processi dei moduli ----
+  "storage.get": spec(
+    "plugin.self",
+    z.strictObject({ key: z.string().min(1) }),
+    z.strictObject({ found: z.boolean(), value: z.unknown().optional() }),
+  ),
+  "storage.set": spec(
+    "plugin.self",
+    z.strictObject({ key: z.string().min(1), value: z.unknown() }),
+    Empty,
+  ),
+  "storage.delete": spec("plugin.self", z.strictObject({ key: z.string().min(1) }), Empty),
+  "events.subscribe": spec(
+    "plugin.self",
+    z.strictObject({ names: z.array(z.string().min(1)) }),
+    Empty,
+  ),
+} as const satisfies Record<string, MethodSpec>;
+
+export type EngineMethodName = keyof typeof EngineMethods;
+export type EngineMethodParams<N extends EngineMethodName> = z.input<
+  (typeof EngineMethods)[N]["params"]
+>;
+export type EngineMethodResult<N extends EngineMethodName> = z.output<
+  (typeof EngineMethods)[N]["result"]
+>;
+
+export function isEngineMethod(name: string): name is EngineMethodName {
+  return Object.hasOwn(EngineMethods, name);
+}
+
+/** Richieste che il motore fa al processo di un modulo. */
+export const PluginHostMethods = {
+  "plugin.activate": spec(
+    "plugin.self",
+    z.strictObject({
+      context: z.strictObject({
+        pluginId: PluginIdSchema,
+        version: z.string(),
+        protocol: z.string(),
+        lang: LangSchema,
+        settings: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+      }),
+    }),
+    Empty,
+  ),
+  "plugin.deactivate": spec("plugin.self", Empty, Empty),
+  "command.execute": spec(
+    "plugin.self",
+    z.strictObject({ command: z.string().min(1), params: Params.optional() }),
+    z.strictObject({ result: z.unknown() }),
+  ),
+} as const satisfies Record<string, MethodSpec>;
+
+export type PluginHostMethodName = keyof typeof PluginHostMethods;
+export type PluginHostMethodParams<N extends PluginHostMethodName> = z.input<
+  (typeof PluginHostMethods)[N]["params"]
+>;
+export type PluginHostMethodResult<N extends PluginHostMethodName> = z.output<
+  (typeof PluginHostMethods)[N]["result"]
+>;
+
+// ---- notifiche ----
+
+export const JsonPatchOperationSchema = z.discriminatedUnion("op", [
+  z.strictObject({ op: z.literal("add"), path: z.string(), value: z.unknown() }),
+  z.strictObject({ op: z.literal("remove"), path: z.string() }),
+  z.strictObject({ op: z.literal("replace"), path: z.string(), value: z.unknown() }),
+  z.strictObject({ op: z.literal("move"), path: z.string(), from: z.string() }),
+  z.strictObject({ op: z.literal("copy"), path: z.string(), from: z.string() }),
+  z.strictObject({ op: z.literal("test"), path: z.string(), value: z.unknown() }),
+]);
+export type JsonPatchOperation = z.infer<typeof JsonPatchOperationSchema>;
+
+export const Notifications = {
+  /** Motore -> postazioni/renderer/moduli: patch allo StateDocument. */
+  "state.patch": z.strictObject({
+    rev: z.number().int().positive(),
+    ops: z.array(JsonPatchOperationSchema),
+  }),
+  /** Motore -> iscritti: evento del nucleo o di un modulo. */
+  event: z.strictObject({ name: z.string().min(1), payload: z.unknown().optional() }),
+  /** Modulo -> motore: evento dichiarato in contributes.events (id locale). */
+  "event.emit": z.strictObject({ name: z.string().min(1), payload: z.unknown().optional() }),
+  /** Modulo -> motore: riga di log. */
+  log: z.strictObject({ level: z.enum(["debug", "info", "warn", "error"]), message: z.string() }),
+} as const;
+export type NotificationName = keyof typeof Notifications;
+
+/** Eventi emessi dal nucleo, usabili dalle regole e dai moduli. */
+export const CORE_EVENTS = [
+  "core.cue.changed",
+  "core.preview.changed",
+  "core.layer.cleared",
+  "core.output.blackout",
+  "core.output.freeze",
+  "core.output.error",
+  "core.show.opened",
+  "core.show.saved",
+  "core.plugin.stateChanged",
+] as const;
+export type CoreEvent = (typeof CORE_EVENTS)[number];

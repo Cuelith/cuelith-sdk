@@ -1,0 +1,522 @@
+{
+  "$id": "https://cuelith.github.io/cuelith-sdk/schema/plugin-1.json",
+  "title": "Manifest di un modulo di Cuelith (cuelith-plugin.json)",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:\\.[a-z0-9]+(?:-[a-z0-9]+)*)+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string"
+    },
+    "publisher": {
+      "type": "string",
+      "minLength": 1
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri"
+    },
+    "family": {
+      "type": "string",
+      "enum": [
+        "function",
+        "mode",
+        "video",
+        "audio",
+        "control",
+        "integration",
+        "locale"
+      ]
+    },
+    "engines": {
+      "type": "object",
+      "properties": {
+        "cuelith": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "cuelith",
+        "protocol"
+      ],
+      "additionalProperties": false
+    },
+    "runtime": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "node"
+            },
+            "entry": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "entry"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "native"
+            },
+            "bin": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "enum": [
+                  "win-x64",
+                  "win-arm64",
+                  "mac-x64",
+                  "mac-arm64",
+                  "linux-x64",
+                  "linux-arm64"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": [
+            "type",
+            "bin"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "entry"
+      ],
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?:storage|network|network:[a-z0-9-]+(?:\\.[a-z0-9-]+)+|fs:read|fs:write|devices:video|devices:audio|devices:midi|serial)$"
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:\\.[a-z0-9]+(?:-[a-z0-9]+)*)+$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "extends": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "point": {
+            "type": "string",
+            "pattern": "^[a-z0-9.-]+\\/[a-z0-9.-]+$"
+          }
+        },
+        "required": [
+          "point"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "provides": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^service:[a-z0-9.-]+$"
+      }
+    },
+    "contributes": {
+      "type": "object",
+      "properties": {
+        "modes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "shortcut": {
+                "type": "string",
+                "pattern": "^(?:(?:Mod|Shift|Alt)\\+)*(?:[A-Z0-9]|F(?:[1-9]|1[0-2])|Space|Enter|Escape)$"
+              },
+              "icon": {
+                "type": "string",
+                "minLength": 1
+              },
+              "layout": {
+                "type": "object",
+                "properties": {
+                  "columns": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?:\\d+(?:\\.\\d+)?fr|\\d+px|auto|minmax\\(\\s*\\d+px\\s*,\\s*\\d+(?:\\.\\d+)?fr\\s*\\))$"
+                    }
+                  },
+                  "rows": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(?:\\d+(?:\\.\\d+)?fr|\\d+px|auto|minmax\\(\\s*\\d+px\\s*,\\s*\\d+(?:\\.\\d+)?fr\\s*\\))$"
+                    }
+                  },
+                  "areas": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[a-z][a-zA-Z0-9]*$"
+                          },
+                          {
+                            "type": "string",
+                            "const": "."
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "panels": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-zA-Z0-9]*$"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:\\.[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)+$"
+                    }
+                  }
+                },
+                "required": [
+                  "columns",
+                  "rows",
+                  "areas",
+                  "panels"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "layout"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "panels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "title": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-zA-Z0-9]+)+(?:#(?:zero|one|two|few|many|other))?$"
+              },
+              "icon": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "itemTypes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "title": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-zA-Z0-9]+)+(?:#(?:zero|one|two|few|many|other))?$"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "sourceTypes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "title": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-zA-Z0-9]+)+(?:#(?:zero|one|two|few|many|other))?$"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "outputKinds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "title": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-zA-Z0-9]+)+(?:#(?:zero|one|two|few|many|other))?$"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "lookTemplates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "title": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-zA-Z0-9]+)+(?:#(?:zero|one|two|few|many|other))?$"
+              },
+              "sourceType": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(?:\\.[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*)+$"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "sourceType"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "title": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-zA-Z0-9]+)+(?:#(?:zero|one|two|few|many|other))?$"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+          }
+        },
+        "settings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "title": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-zA-Z0-9]+)+(?:#(?:zero|one|two|few|many|other))?$"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              },
+              "default": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "title",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "extensionPoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]*(?:[.-][a-zA-Z0-9]+)*$"
+              },
+              "schema": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "schema"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "locales": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "lang": {
+                "type": "string",
+                "pattern": "^[a-z]{2,3}(?:-[A-Z]{2})?$"
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "lang",
+              "file"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "version",
+    "publisher",
+    "license",
+    "repository",
+    "family",
+    "engines",
+    "runtime",
+    "permissions",
+    "dependencies",
+    "extends",
+    "provides",
+    "contributes"
+  ],
+  "additionalProperties": false
+}
