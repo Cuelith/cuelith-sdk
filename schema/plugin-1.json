@@ -301,6 +301,13 @@
               "icon": {
                 "type": "string",
                 "minLength": 1
+              },
+              "placement": {
+                "type": "string",
+                "enum": [
+                  "side",
+                  "center"
+                ]
               }
             },
             "required": [

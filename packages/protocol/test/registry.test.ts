@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { RegistryIndexSchema, RegistryPluginSchema } from "../src/index.js";
+import {
+  HostToPanelSchema,
+  PanelToHostSchema,
+  RegistryIndexSchema,
+  RegistryPluginSchema,
+} from "../src/index.js";
 
 export function registryEntry(id = "cuelith.songs") {
   return {
@@ -53,5 +58,22 @@ describe("registry dei moduli", () => {
       plugins: [registryEntry(), registryEntry()],
     });
     expect(result.error?.issues.map((i) => i.message)).toContain("protocol.registry.duplicateId");
+  });
+});
+
+describe("ponte dei pannelli", () => {
+  it("valida i messaggi tra pannello e postazione", () => {
+    expect(
+      PanelToHostSchema.safeParse({ type: "call", id: 1, method: "item.create", params: {} })
+        .success,
+    ).toBe(true);
+    expect(PanelToHostSchema.safeParse({ type: "eval", code: "x" }).success).toBe(false);
+    expect(
+      HostToPanelSchema.safeParse({
+        type: "error",
+        id: 1,
+        error: { code: 4030, message: "core.error.forbidden" },
+      }).success,
+    ).toBe(true);
   });
 });

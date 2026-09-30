@@ -74,6 +74,12 @@ export const ContributesSchema = z.strictObject({
         id: LocalIdSchema,
         title: MessageKeySchema,
         icon: z.string().min(1).optional(),
+        /**
+         * Dove compare nelle modalita' del nucleo (dal protocollo 1.4): "side" =
+         * scheda nella colonna di sinistra (elenchi); "center" = al posto della
+         * colonna Slide finche' e' aperto (editor), col programma sempre visibile.
+         */
+        placement: z.enum(["side", "center"]).optional(),
       }),
     )
     .optional(),

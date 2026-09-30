@@ -1,0 +1,35 @@
+{
+  "name": "@cuelith/panel",
+  "version": "0.1.0",
+  "description": "Per i pannelli dei moduli di Cuelith: collegamento alla postazione, testi tradotti, stato dello show e comandi.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Cuelith/cuelith-sdk.git",
+    "directory": "packages/panel"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cuelith/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.2"
+  }
+}
