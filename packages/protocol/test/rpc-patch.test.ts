@@ -62,6 +62,7 @@ function makeState(): StateDocument {
       clients: [],
       plugins: [],
       dirty: false,
+      libraryRev: 0,
     },
   };
 }

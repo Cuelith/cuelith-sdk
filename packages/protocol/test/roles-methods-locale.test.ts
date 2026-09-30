@@ -62,6 +62,14 @@ describe("ruoli", () => {
     expect(allowed(BUILTIN_ROLES.operator, "output.create")).toBe(false);
   });
 
+  it("librerie: operatore e regia le modificano, visualizzatore e telecomando le leggono soltanto", () => {
+    expect(allowed(BUILTIN_ROLES.operator, "library.saveItem")).toBe(true);
+    expect(allowed(BUILTIN_ROLES.director, "media.import")).toBe(true);
+    expect(allowed(BUILTIN_ROLES.viewer, "library.items")).toBe(true);
+    expect(allowed(BUILTIN_ROLES.viewer, "library.saveItem")).toBe(false);
+    expect(allowed(BUILTIN_ROLES.remote, "library.create")).toBe(false);
+  });
+
   it("un modulo usa il suo spazio ma non amministra", () => {
     const role = pluginRole("cuelith.bible");
     expect(roleAllows(role, "storage.set", EngineMethods["storage.set"].scope)).toBe(true);

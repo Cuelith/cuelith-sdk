@@ -222,6 +222,147 @@
               "type": "string"
             },
             "additionalProperties": {}
+          },
+          "credits": {
+            "type": "object",
+            "properties": {
+              "authors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "artist",
+                        "words",
+                        "music",
+                        "translation",
+                        "arrangement"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "role"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "altTitles": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "copyright": {
+                "type": "string"
+              },
+              "publisher": {
+                "type": "string"
+              },
+              "year": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 9999
+              },
+              "ccli": {
+                "type": "string",
+                "pattern": "^\\d{1,10}$"
+              },
+              "license": {
+                "type": "string"
+              },
+              "show": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "first",
+                  "last"
+                ]
+              }
+            },
+            "required": [
+              "authors",
+              "show"
+            ],
+            "additionalProperties": false
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "mediaId": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}\\.[a-z0-9]{1,5}$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "audio",
+                    "video"
+                  ]
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "backing",
+                    "guide",
+                    "click",
+                    "other"
+                  ]
+                }
+              },
+              "required": [
+                "mediaId",
+                "name",
+                "kind",
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "derivedFrom": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "libraryRef": {
+            "type": "object",
+            "properties": {
+              "itemId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "itemId",
+              "updatedAt"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [

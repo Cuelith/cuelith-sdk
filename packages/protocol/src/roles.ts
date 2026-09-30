@@ -11,6 +11,8 @@ export const SCOPES = [
   "read",
   "cue",
   "edit",
+  /** Librerie e archivio media (dal protocollo 1.2). */
+  "library",
   "output.control",
   "output.config",
   "show",
@@ -46,7 +48,16 @@ export const BUILTIN_ROLES = {
   operator: {
     id: "operator",
     titleKey: "core.role.operator",
-    scopes: ["session", "read", "cue", "edit", "output.control", "show", "plugin.command"],
+    scopes: [
+      "session",
+      "read",
+      "cue",
+      "edit",
+      "library",
+      "output.control",
+      "show",
+      "plugin.command",
+    ],
     methods: [],
   },
   remote: {
@@ -70,7 +81,7 @@ export function pluginRole(pluginId: string): Role {
   return {
     id: `plugin:${pluginId}`,
     titleKey: "core.role.plugin",
-    scopes: ["session", "read", "cue", "edit", "plugin.self"],
+    scopes: ["session", "read", "cue", "edit", "library", "plugin.self"],
     methods: [],
   };
 }

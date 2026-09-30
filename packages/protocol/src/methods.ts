@@ -10,7 +10,12 @@ import { CatalogSchema, LangSchema } from "./locale.js";
 import { PluginManifestSchema } from "./plugin.js";
 import { RoleIdSchema, type Scope } from "./roles.js";
 import {
+  AttachmentSchema,
   AudienceSchema,
+  CreditsSchema,
+  ItemSchema,
+  MediaInfoSchema,
+  TagSchema,
   FeedSchema,
   FieldSchema,
   LayerIdSchema,
@@ -59,6 +64,37 @@ export const TransitionSchema = z.strictObject({
   durationMs: z.number().int().min(0).max(10_000),
 });
 export type Transition = z.infer<typeof TransitionSchema>;
+
+const HexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+
+/** Una libreria: elenco ordinato di elementi dell'archivio (decisione 0001). */
+export const LibrarySchema = z.strictObject({
+  id: IdSchema,
+  name: z.string().min(1),
+  description: z.string().optional(),
+  color: HexColor.optional(),
+  count: z.number().int().nonnegative(),
+});
+export type Library = z.infer<typeof LibrarySchema>;
+
+/** Riga di un elenco di libreria: quanto basta per mostrarla e cercarla. */
+export const LibraryItemSummarySchema = z.strictObject({
+  id: IdSchema,
+  type: QualifiedTypeSchema,
+  title: z.string(),
+  authors: z.array(z.string()),
+  tags: z.array(z.string()),
+  slideCount: z.number().int().nonnegative(),
+  hasAttachments: z.boolean(),
+  updatedAt: z.iso.datetime(),
+  derivedFrom: IdSchema.optional(),
+  /** Solo negli elenchi di una libreria: la voce e il suo numero (es. innario). */
+  entryId: IdSchema.optional(),
+  number: z.string().optional(),
+});
+export type LibraryItemSummary = z.infer<typeof LibraryItemSummarySchema>;
+
+const EntryNumber = z.string().trim().min(1).max(20);
 
 export const InstalledPluginSchema = z.strictObject({
   manifest: PluginManifestSchema,
@@ -199,6 +235,9 @@ export const EngineMethods = {
       title: z.string(),
       slides: z.array(SlideInputSchema).optional(),
       meta: Params.optional(),
+      credits: CreditsSchema.optional(),
+      tags: z.array(TagSchema).optional(),
+      attachments: z.array(AttachmentSchema).optional(),
     }),
     Created,
   ),
@@ -209,6 +248,9 @@ export const EngineMethods = {
       title: z.string().optional(),
       arrangement: z.array(z.string().min(1)).nullable().optional(),
       meta: Params.optional(),
+      credits: CreditsSchema.nullable().optional(),
+      tags: z.array(TagSchema).optional(),
+      attachments: z.array(AttachmentSchema).optional(),
     }),
     Rev,
   ),
@@ -245,6 +287,14 @@ export const EngineMethods = {
     }),
     Created,
   ),
+  /** Mette in scaletta una copia di un elemento di libreria (dal protocollo 1.2). */
+  "playlist.addFromLibrary": spec(
+    "edit",
+    z.strictObject({ itemId: IdSchema, index: Index.optional() }),
+    Created,
+  ),
+  /** Sostituisce la copia nello show con la versione attuale della libreria. */
+  "item.refreshFromLibrary": spec("edit", z.strictObject({ id: IdSchema }), Rev),
   "playlist.remove": spec("edit", z.strictObject({ entryId: IdSchema }), Rev),
   "playlist.move": spec("edit", z.strictObject({ entryId: IdSchema, toIndex: Index }), Rev),
   "playlist.setAudience": spec(
@@ -304,6 +354,101 @@ export const EngineMethods = {
   "show.rename": spec("show", z.strictObject({ name: z.string().min(1) }), Rev),
   /** Elimina la copia automatica proposta in live.recovery (dal protocollo 1.1). */
   "show.discardRecovery": spec("show", Empty, Rev),
+
+  // ---- librerie e archivio media (dal protocollo 1.2) ----
+  "library.list": spec("read", Empty, z.strictObject({ libraries: z.array(LibrarySchema) })),
+  "library.create": spec(
+    "library",
+    z.strictObject({
+      name: z.string().trim().min(1),
+      description: z.string().optional(),
+      color: HexColor.optional(),
+    }),
+    Created,
+  ),
+  "library.update": spec(
+    "library",
+    z.strictObject({
+      id: IdSchema,
+      name: z.string().trim().min(1).optional(),
+      description: z.string().nullable().optional(),
+      color: HexColor.nullable().optional(),
+    }),
+    Rev,
+  ),
+  /** Elimina la libreria, non i suoi elementi: restano nell'archivio. */
+  "library.delete": spec("library", z.strictObject({ id: IdSchema }), Rev),
+  "library.move": spec("library", z.strictObject({ id: IdSchema, toIndex: Index }), Rev),
+  /** Elementi di una libreria (o di tutto l'archivio), con ricerca e filtro per tag. */
+  "library.items": spec(
+    "read",
+    z.strictObject({
+      libraryId: IdSchema.optional(),
+      query: z.string().max(200).optional(),
+      tag: TagSchema.optional(),
+      offset: Index.optional(),
+      limit: z.number().int().min(1).max(500).optional(),
+    }),
+    z.strictObject({
+      items: z.array(LibraryItemSummarySchema),
+      total: z.number().int().nonnegative(),
+    }),
+  ),
+  "library.tags": spec(
+    "read",
+    Empty,
+    z.strictObject({
+      tags: z.array(z.strictObject({ tag: z.string(), count: z.number().int().positive() })),
+    }),
+  ),
+  "library.getItem": spec(
+    "read",
+    z.strictObject({ id: IdSchema }),
+    z.strictObject({ item: ItemSchema, updatedAt: z.iso.datetime() }),
+  ),
+  /** Crea o sostituisce un elemento dell'archivio; se nuovo lo aggiunge alla libreria indicata. */
+  "library.saveItem": spec(
+    "library",
+    z.strictObject({ item: ItemSchema, libraryId: IdSchema.optional() }),
+    Created,
+  ),
+  /** Nuova versione indipendente di un elemento, che ricorda l'originale. */
+  "library.duplicateItem": spec(
+    "library",
+    z.strictObject({ id: IdSchema, libraryId: IdSchema.optional() }),
+    Created,
+  ),
+  /** Toglie l'elemento dall'archivio e da tutte le librerie. */
+  "library.deleteItem": spec("library", z.strictObject({ id: IdSchema }), Rev),
+  /** Salva nell'archivio un elemento dello show (e ne fa la copia di riferimento). */
+  "library.saveFromShow": spec(
+    "library",
+    z.strictObject({ itemId: IdSchema, libraryId: IdSchema.optional() }),
+    Created,
+  ),
+  "library.addEntry": spec(
+    "library",
+    z.strictObject({
+      libraryId: IdSchema,
+      itemId: IdSchema,
+      index: Index.optional(),
+      number: EntryNumber.optional(),
+    }),
+    Created,
+  ),
+  "library.updateEntry": spec(
+    "library",
+    z.strictObject({ entryId: IdSchema, number: EntryNumber.nullable() }),
+    Rev,
+  ),
+  "library.removeEntry": spec("library", z.strictObject({ entryId: IdSchema }), Rev),
+  "library.moveEntry": spec("library", z.strictObject({ entryId: IdSchema, toIndex: Index }), Rev),
+  /** Copia nell'archivio un file del computer del motore (basi musicali, immagini). */
+  "media.import": spec(
+    "library",
+    z.strictObject({ path: z.string().min(1) }),
+    z.strictObject({ media: MediaInfoSchema }),
+  ),
 
   // ---- moduli ----
   "plugin.install": spec(

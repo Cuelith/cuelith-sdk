@@ -38,6 +38,81 @@ export const MediaRefSchema = z.strictObject({
 });
 export type MediaRef = z.infer<typeof MediaRefSchema>;
 
+// ---------- Archivio media, crediti, tag (protocollo 1.2, decisione 0001) ----------
+
+export const MEDIA_KINDS = ["image", "audio", "video"] as const;
+export const MediaKindSchema = z.enum(MEDIA_KINDS);
+export type MediaKind = z.infer<typeof MediaKindSchema>;
+
+/** File dell'archivio media: impronta SHA-256 del contenuto + estensione. */
+export const MediaIdSchema = z
+  .string()
+  .regex(/^[a-f0-9]{64}\.[a-z0-9]{1,5}$/, "protocol.media.idInvalid");
+export type MediaId = z.infer<typeof MediaIdSchema>;
+
+/** Un MediaRef.uri che punta all'archivio: "media:<id>". */
+export const MEDIA_URI_PREFIX = "media:";
+export const mediaUri = (id: MediaId): string => MEDIA_URI_PREFIX + id;
+export function mediaIdOf(uri: string): MediaId | undefined {
+  if (!uri.startsWith(MEDIA_URI_PREFIX)) return undefined;
+  const id = MediaIdSchema.safeParse(uri.slice(MEDIA_URI_PREFIX.length));
+  return id.success ? id.data : undefined;
+}
+
+export const MediaInfoSchema = z.strictObject({
+  id: MediaIdSchema,
+  /** Nome originale del file, per mostrarlo all'operatore. */
+  name: z.string().min(1),
+  kind: MediaKindSchema,
+  mime: z.string().min(1),
+  size: z.number().int().nonnegative(),
+});
+export type MediaInfo = z.infer<typeof MediaInfoSchema>;
+
+export const ATTACHMENT_ROLES = ["backing", "guide", "click", "other"] as const;
+/** File allegato a un elemento, es. la base musicale di un canto. */
+export const AttachmentSchema = z.strictObject({
+  mediaId: MediaIdSchema,
+  name: z.string().min(1),
+  kind: MediaKindSchema,
+  role: z.enum(ATTACHMENT_ROLES),
+});
+export type Attachment = z.infer<typeof AttachmentSchema>;
+
+export const AUTHOR_ROLES = ["artist", "words", "music", "translation", "arrangement"] as const;
+export const AuthorSchema = z.strictObject({
+  name: z.string().trim().min(1),
+  role: z.enum(AUTHOR_ROLES),
+});
+export type Author = z.infer<typeof AuthorSchema>;
+
+/** Crediti e copyright di un elemento (qualsiasi tipo: testo, canto, immagine...). */
+export const CreditsSchema = z.strictObject({
+  authors: z.array(AuthorSchema),
+  altTitles: z.array(z.string().trim().min(1)).optional(),
+  copyright: z.string().optional(),
+  publisher: z.string().optional(),
+  year: z.number().int().min(1000).max(9999).optional(),
+  /** Numero del brano nel catalogo CCLI (solo cifre). */
+  ccli: z
+    .string()
+    .regex(/^\d{1,10}$/, "protocol.credits.ccliInvalid")
+    .optional(),
+  license: z.string().optional(),
+  /** Dove le uscite mostrano i crediti. */
+  show: z.enum(["none", "first", "last"]),
+});
+export type Credits = z.infer<typeof CreditsSchema>;
+
+export const TagSchema = z.string().trim().min(1).max(40);
+
+/** Un elemento dello show copiato da una libreria: da dove viene e di quando e' la copia. */
+export const LibraryRefSchema = z.strictObject({
+  itemId: IdSchema,
+  updatedAt: z.iso.datetime(),
+});
+export type LibraryRef = z.infer<typeof LibraryRefSchema>;
+
 export const SlideSchema = z.strictObject({
   id: IdSchema,
   group: z.string().min(1).optional(),
@@ -57,6 +132,13 @@ export const ItemSchema = z.strictObject({
   /** Ordine dei gruppi, es. ["S1","RIT","S2","RIT"]. */
   arrangement: z.array(z.string().min(1)).optional(),
   meta: Params,
+  credits: CreditsSchema.optional(),
+  tags: z.array(TagSchema).optional(),
+  attachments: z.array(AttachmentSchema).optional(),
+  /** Versione di un altro elemento (es. un arrangiamento diverso dello stesso canto). */
+  derivedFrom: IdSchema.optional(),
+  /** Solo negli show: l'elemento di libreria da cui e' stato copiato. */
+  libraryRef: LibraryRefSchema.optional(),
 });
 export type Item = z.infer<typeof ItemSchema>;
 

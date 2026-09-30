@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newId, ShowSchema, slideSequence, type Show } from "../src/index.js";
+import { mediaIdOf, mediaUri, newId, ShowSchema, slideSequence, type Show } from "../src/index.js";
 import { makeShow } from "./fixtures.js";
 
 function messages(show: unknown): string[] {
@@ -137,5 +137,46 @@ describe("uscite display", () => {
     if (output === undefined) throw new Error("uscita mancante");
     output.target = { displayId: "2" };
     expect(messages(show)).toContain("protocol.show.displayTargetInvalid");
+  });
+});
+
+describe("crediti, tag e allegati (protocollo 1.2)", () => {
+  const credits = {
+    authors: [{ name: "Anna Rossi", role: "artist" as const }],
+    show: "last" as const,
+  };
+  const withExtras = () => {
+    const show = makeShow();
+    const item = Object.values(show.items)[0];
+    if (item === undefined) throw new Error("elemento mancante");
+    return { show, item };
+  };
+
+  it("accetta crediti completi, tag e una base musicale dall'archivio", () => {
+    const { show, item } = withExtras();
+    item.credits = { ...credits, copyright: "© 2024 Editore", ccli: "7012345", year: 2024 };
+    item.tags = ["Natale", "Lode"];
+    item.attachments = [
+      { mediaId: `${"a".repeat(64)}.mp3`, name: "Base.mp3", kind: "audio", role: "backing" },
+    ];
+    expect(messages(show)).toEqual([]);
+  });
+
+  it("rifiuta un numero CCLI non numerico e allegati fuori dall'archivio", () => {
+    const { show, item } = withExtras();
+    item.credits = { ...credits, ccli: "CCLI-12" };
+    item.attachments = [{ mediaId: "base.mp3", name: "Base", kind: "audio", role: "backing" }];
+    const found = messages(show);
+    expect(found).toContain("protocol.credits.ccliInvalid");
+    expect(found).toContain("protocol.media.idInvalid");
+  });
+
+  it("riconosce gli URI dell'archivio media", () => {
+    const id = `${"b".repeat(64)}.png`;
+    expect(mediaIdOf(mediaUri(id))).toBe(id);
+    expect(mediaIdOf("https://esempio.it/sfondo.png")).toBeUndefined();
+    expect(mediaIdOf("media:../../segreto.png")).toBeUndefined();
+    // Il punto prima dell'estensione e' letterale: niente separatori di percorso.
+    expect(mediaIdOf(`media:${"c".repeat(64)}/png`)).toBeUndefined();
   });
 });

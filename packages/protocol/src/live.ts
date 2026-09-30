@@ -89,6 +89,11 @@ export const LiveStateSchema = z.strictObject({
   /** Vero se ci sono modifiche non ancora salvate su file. */
   dirty: z.boolean(),
   /**
+   * Cresce a ogni modifica delle librerie (dal protocollo 1.2): le librerie
+   * non viaggiano nello stato, le postazioni le rileggono quando cambia.
+   */
+  libraryRev: z.number().int().nonnegative(),
+  /**
    * Copia automatica rimasta da una chiusura non corretta (arresto, blocco):
    * la postazione propone di riaprirla. Dal protocollo 1.1.
    */
