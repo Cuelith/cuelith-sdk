@@ -43,6 +43,11 @@
     "verified": {
       "type": "boolean"
     },
+    "icon": {
+      "type": "string",
+      "maxLength": 65536,
+      "pattern": "^data:image\\/svg\\+xml;base64,[A-Za-z0-9+/=]+$"
+    },
     "versions": {
       "minItems": 1,
       "type": "array",

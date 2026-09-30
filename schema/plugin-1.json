@@ -129,6 +129,10 @@
         }
       ]
     },
+    "icon": {
+      "type": "string",
+      "minLength": 1
+    },
     "ui": {
       "type": "object",
       "properties": {
