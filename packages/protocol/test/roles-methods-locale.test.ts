@@ -104,3 +104,20 @@ describe("translate", () => {
     expect(translate(catalog, "it", "core.mancante")).toBe("core.mancante");
   });
 });
+
+describe("librerie organizzate (protocollo 1.3)", () => {
+  it("la sigla e' fatta di lettere e cifre maiuscole", () => {
+    const params = EngineMethods["library.create"].params;
+    expect(params.safeParse({ name: "Innario", code: "INN" }).success).toBe(true);
+    expect(params.safeParse({ name: "Innario", code: "RdA" }).success).toBe(false);
+    expect(params.safeParse({ name: "Innario", code: "TROPPOLUNGA" }).success).toBe(false);
+  });
+
+  it("categoria e preferita si possono cambiare e togliere", () => {
+    const params = EngineMethods["library.update"].params;
+    expect(
+      params.safeParse({ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", category: null, favorite: true })
+        .success,
+    ).toBe(true);
+  });
+});

@@ -68,14 +68,34 @@ export type Transition = z.infer<typeof TransitionSchema>;
 const HexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 
 /** Una libreria: elenco ordinato di elementi dell'archivio (decisione 0001). */
+/** Sigla di una libreria (es. "INN"): lettere e cifre maiuscole, per "INN 245" (protocollo 1.3). */
+export const LibraryCodeSchema = z
+  .string()
+  .regex(/^[A-Z0-9]{1,8}$/, "protocol.library.codeInvalid");
+
+/** Categoria di una libreria (es. "Innari", "Letture"), scelta dall'utente (protocollo 1.3). */
+export const LibraryCategorySchema = z.string().trim().min(1).max(40);
+
 export const LibrarySchema = z.strictObject({
   id: IdSchema,
   name: z.string().min(1),
   description: z.string().optional(),
   color: HexColor.optional(),
+  category: LibraryCategorySchema.optional(),
+  code: LibraryCodeSchema.optional(),
+  favorite: z.boolean(),
   count: z.number().int().nonnegative(),
 });
 export type Library = z.infer<typeof LibrarySchema>;
+
+/** Dove sta un elemento: libreria, sigla e numero (per la ricerca in tutto l'archivio). */
+export const LibraryMembershipSchema = z.strictObject({
+  libraryId: IdSchema,
+  name: z.string(),
+  code: LibraryCodeSchema.optional(),
+  number: z.string().optional(),
+});
+export type LibraryMembership = z.infer<typeof LibraryMembershipSchema>;
 
 /** Riga di un elenco di libreria: quanto basta per mostrarla e cercarla. */
 export const LibraryItemSummarySchema = z.strictObject({
@@ -91,6 +111,8 @@ export const LibraryItemSummarySchema = z.strictObject({
   /** Solo negli elenchi di una libreria: la voce e il suo numero (es. innario). */
   entryId: IdSchema.optional(),
   number: z.string().optional(),
+  /** Librerie che contengono l'elemento, con sigla e numero (protocollo 1.3). */
+  libraries: z.array(LibraryMembershipSchema),
 });
 export type LibraryItemSummary = z.infer<typeof LibraryItemSummarySchema>;
 
@@ -363,6 +385,8 @@ export const EngineMethods = {
       name: z.string().trim().min(1),
       description: z.string().optional(),
       color: HexColor.optional(),
+      category: LibraryCategorySchema.optional(),
+      code: LibraryCodeSchema.optional(),
     }),
     Created,
   ),
@@ -373,6 +397,9 @@ export const EngineMethods = {
       name: z.string().trim().min(1).optional(),
       description: z.string().nullable().optional(),
       color: HexColor.nullable().optional(),
+      category: LibraryCategorySchema.nullable().optional(),
+      code: LibraryCodeSchema.nullable().optional(),
+      favorite: z.boolean().optional(),
     }),
     Rev,
   ),
