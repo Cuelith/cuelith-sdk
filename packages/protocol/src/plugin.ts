@@ -142,6 +142,23 @@ const ManifestShape = z.strictObject({
   /** Es. ["service:transitions"]. */
   provides: z.array(z.string().regex(/^service:[a-z0-9.-]+$/, "protocol.manifest.serviceInvalid")),
   contributes: ContributesSchema,
+  /** Documentazione completa (dal protocollo 1.4): si apre dalla pagina dei moduli. */
+  docs: z.strictObject({ url: z.url({ protocol: /^https$/ }) }).optional(),
+  /**
+   * Guida al primo uso, mostrata subito dopo l'installazione e riapribile
+   * (dal protocollo 1.4). Testi come chiavi del modulo, tradotte dai suoi cataloghi.
+   */
+  onboarding: z
+    .array(
+      z.strictObject({
+        title: MessageKeySchema,
+        body: MessageKeySchema,
+        image: RelativePathSchema.optional(),
+      }),
+    )
+    .min(1)
+    .max(8)
+    .optional(),
 });
 
 export const PluginManifestSchema = ManifestShape.superRefine((m, ctx) => {
@@ -173,6 +190,10 @@ export const PluginManifestSchema = ManifestShape.superRefine((m, ctx) => {
   };
   c.modes?.forEach((mode, i) => {
     ownKey(mode.title, ["contributes", "modes", i, "title"]);
+  });
+  m.onboarding?.forEach((step, i) => {
+    ownKey(step.title, ["onboarding", i, "title"]);
+    ownKey(step.body, ["onboarding", i, "body"]);
   });
   c.panels?.forEach((p, i) => {
     ownKey(p.title, ["contributes", "panels", i, "title"]);

@@ -130,3 +130,27 @@ describe("PluginManifestSchema", () => {
     expect(messages(m)).toEqual([]);
   });
 });
+
+describe("guida al primo uso e documentazione (protocollo 1.4)", () => {
+  it("accetta passi con chiavi del modulo e un indirizzo https", () => {
+    const m = {
+      ...bibleManifest(),
+      docs: { url: "https://github.com/Cuelith/plugin-bible#readme" },
+      onboarding: [{ title: "cuelith.bible.tour.1.title", body: "cuelith.bible.tour.1.body" }],
+    };
+    expect(PluginManifestSchema.safeParse(m).success).toBe(true);
+  });
+
+  it("rifiuta testi fuori dallo spazio del modulo e documentazione non https", () => {
+    const m = {
+      ...bibleManifest(),
+      docs: { url: "http://esempio.it" },
+      onboarding: [{ title: "core.mode.present", body: "cuelith.bible.tour.1.body" }],
+    };
+    const result = PluginManifestSchema.safeParse(m);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((i) => i.message)).toContain(
+      "protocol.manifest.keyOutsideNamespace",
+    );
+  });
+});
