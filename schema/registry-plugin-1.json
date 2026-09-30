@@ -1,0 +1,126 @@
+{
+  "$id": "https://cuelith.github.io/cuelith-sdk/schema/registry-plugin-1.json",
+  "title": "Voce del registry dei moduli di Cuelith (plugins/<id>.json)",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:\\.[a-z0-9]+(?:-[a-z0-9]+)*)+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "publisher": {
+      "type": "string",
+      "minLength": 1
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri"
+    },
+    "family": {
+      "type": "string",
+      "enum": [
+        "function",
+        "mode",
+        "video",
+        "audio",
+        "control",
+        "integration",
+        "locale"
+      ]
+    },
+    "verified": {
+      "type": "boolean"
+    },
+    "versions": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "engines": {
+            "type": "object",
+            "properties": {
+              "cuelith": {
+                "type": "string"
+              },
+              "protocol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "cuelith",
+              "protocol"
+            ],
+            "additionalProperties": false
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:storage|network|network:[a-z0-9-]+(?:\\.[a-z0-9-]+)+|fs:read|fs:write|devices:video|devices:audio|devices:midi|serial)$"
+            }
+          },
+          "published": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "version",
+          "engines",
+          "url",
+          "sha256",
+          "size",
+          "permissions",
+          "published"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "publisher",
+    "license",
+    "repository",
+    "family",
+    "verified",
+    "versions"
+  ],
+  "additionalProperties": false
+}

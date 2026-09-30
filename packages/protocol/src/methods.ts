@@ -8,6 +8,7 @@ import {
 } from "./live.js";
 import { CatalogSchema, LangSchema } from "./locale.js";
 import { PluginManifestSchema } from "./plugin.js";
+import { RegistryPluginSchema } from "./registry.js";
 import { RoleIdSchema, type Scope } from "./roles.js";
 import {
   AttachmentSchema,
@@ -125,6 +126,10 @@ export const InstalledPluginSchema = z.strictObject({
   bundled: z.boolean(),
   /** Vero se non si puo' disattivare, es. l'unica lingua installata. */
   required: z.boolean(),
+  /** Attivato dall'utente (un modulo disattivato resta installato). Dal protocollo 1.4. */
+  enabled: z.boolean(),
+  /** Da dove viene: col nucleo, dal marketplace o da un file/cartella locale. */
+  source: z.enum(["bundled", "registry", "local"]),
 });
 export type InstalledPlugin = z.infer<typeof InstalledPluginSchema>;
 
@@ -481,6 +486,22 @@ export const EngineMethods = {
   "plugin.install": spec(
     "plugins",
     z.strictObject({ path: z.string().min(1) }),
+    z.strictObject({ id: PluginIdSchema, version: z.string() }),
+  ),
+  /** Indice del marketplace (dal protocollo 1.4); se offline, l'ultima copia salvata. */
+  "registry.list": spec(
+    "read",
+    z.strictObject({ refresh: z.boolean().optional() }),
+    z.strictObject({
+      plugins: z.array(RegistryPluginSchema),
+      source: z.enum(["network", "cache", "none"]),
+      fetchedAt: z.iso.datetime().optional(),
+    }),
+  ),
+  /** Scarica dal marketplace, verifica l'impronta e installa (o aggiorna). */
+  "plugin.installFromRegistry": spec(
+    "plugins",
+    z.strictObject({ id: PluginIdSchema, version: z.string().min(1).optional() }),
     z.strictObject({ id: PluginIdSchema, version: z.string() }),
   ),
   "plugin.uninstall": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),

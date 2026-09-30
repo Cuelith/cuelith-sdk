@@ -8,3 +8,4 @@ export * from "./plugin.js";
 export * from "./rpc.js";
 export * from "./methods.js";
 export * from "./patch.js";
+export * from "./registry.js";
