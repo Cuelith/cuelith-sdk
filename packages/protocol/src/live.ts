@@ -88,6 +88,13 @@ export const LiveStateSchema = z.strictObject({
   showPath: z.string().optional(),
   /** Vero se ci sono modifiche non ancora salvate su file. */
   dirty: z.boolean(),
+  /**
+   * Copia automatica rimasta da una chiusura non corretta (arresto, blocco):
+   * la postazione propone di riaprirla. Dal protocollo 1.1.
+   */
+  recovery: z
+    .strictObject({ path: z.string().min(1), showName: z.string(), savedAt: z.iso.datetime() })
+    .optional(),
 });
 export type LiveState = z.infer<typeof LiveStateSchema>;
 

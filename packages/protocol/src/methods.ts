@@ -302,6 +302,8 @@ export const EngineMethods = {
     z.strictObject({ path: z.string(), rev: z.number().int().nonnegative() }),
   ),
   "show.rename": spec("show", z.strictObject({ name: z.string().min(1) }), Rev),
+  /** Elimina la copia automatica proposta in live.recovery (dal protocollo 1.1). */
+  "show.discardRecovery": spec("show", Empty, Rev),
 
   // ---- moduli ----
   "plugin.install": spec(
