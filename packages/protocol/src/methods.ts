@@ -52,6 +52,16 @@ const Created = z.strictObject({ id: IdSchema, rev: z.number().int().nonnegative
 const Index = z.number().int().nonnegative();
 const Params = z.record(z.string(), z.unknown());
 
+/**
+ * Una slide da mandare in anteprima o in onda: di una voce della scaletta
+ * oppure (dal protocollo 1.5) di un elemento fuori scaletta in `live.direct`.
+ */
+export const PositionSchema = z.union([
+  z.strictObject({ entryId: IdSchema, slideIndex: Index }),
+  z.strictObject({ itemId: IdSchema, slideIndex: Index }),
+]);
+export type Position = z.infer<typeof PositionSchema>;
+
 export const SlideInputSchema = z.strictObject({
   fields: z.record(z.string().min(1), FieldSchema),
   group: z.string().min(1).optional(),
@@ -193,10 +203,24 @@ export const EngineMethods = {
   // ---- regia della presentazione ----
   "cue.next": spec("cue", Empty, Rev),
   "cue.prev": spec("cue", Empty, Rev),
-  "cue.goto": spec("cue", z.strictObject({ entryId: IdSchema, slideIndex: Index }), Rev),
+  "cue.goto": spec("cue", PositionSchema, Rev),
   /** Manda in programma cio' che e' in anteprima. */
   "cue.take": spec("cue", Empty, Rev),
-  "preview.set": spec("cue", z.strictObject({ entryId: IdSchema, slideIndex: Index }), Rev),
+  "preview.set": spec("cue", PositionSchema, Rev),
+  /**
+   * Manda un elemento della libreria in anteprima o subito in onda senza
+   * metterlo in scaletta (dal protocollo 1.5). Restituisce l'id della copia in
+   * `live.direct`, da usare con cue.goto / preview.set.
+   */
+  "cue.send": spec(
+    "cue",
+    z.strictObject({
+      libraryItemId: IdSchema,
+      to: z.enum(["preview", "program"]),
+      slideIndex: Index.optional(),
+    }),
+    Created,
+  ),
   "layer.clear": spec("cue", z.strictObject({ layer: LayerIdSchema }), Rev),
   "message.send": spec("cue", z.strictObject({ outputId: IdSchema, text: z.string() }), Rev),
 

@@ -31,7 +31,32 @@ export const PANEL_HOST_METHODS = {
   openPanel: "host.openPanel",
   /** Fa salvare un file all'operatore (es. un canto esportato): la postazione chiede dove. */
   saveFile: "host.saveFile",
+  /**
+   * Tasto della regia premuto nel pannello fuori da un campo di testo (dal
+   * protocollo 1.5): la postazione lo tratta come premuto su di se', cosi' le
+   * frecce, Invio e V C P B I E O funzionano anche dopo un clic nel pannello.
+   */
+  key: "host.key",
 } as const;
+
+/** Tasti che i pannelli passano alla regia: solo questi, niente altro della tastiera. */
+export const CUE_KEYS = [
+  "ArrowRight",
+  "ArrowLeft",
+  "PageDown",
+  "PageUp",
+  " ",
+  "Enter",
+  "Escape",
+  "v",
+  "c",
+  "p",
+  "b",
+  "i",
+  "e",
+  "o",
+] as const;
+export const KeyParamsSchema = z.strictObject({ key: z.enum(CUE_KEYS) });
 
 export const OpenPanelParamsSchema = z.strictObject({
   panel: z.string().min(1),

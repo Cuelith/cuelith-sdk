@@ -1,14 +1,24 @@
 import { z } from "zod";
 import { IdSchema, PluginIdSchema } from "./ids.js";
 import { RoleIdSchema } from "./roles.js";
-import { FeedSchema, LAYER_IDS, ShowSchema } from "./show.js";
+import { FeedSchema, ItemSchema, LAYER_IDS, ShowSchema, type Item } from "./show.js";
 
 // Stato live (cap. 22): vive solo in memoria nel motore, mai nel file.
 
-export const CursorSchema = z.strictObject({
-  entryId: IdSchema.optional(),
-  slideIndex: z.number().int().nonnegative(),
-});
+/**
+ * Dove sono programma e anteprima: una voce della scaletta (`entryId`) oppure,
+ * dal protocollo 1.5, un elemento mandato direttamente senza scaletta
+ * (`itemId`, in `live.direct`). Mai tutti e due.
+ */
+export const CursorSchema = z
+  .strictObject({
+    entryId: IdSchema.optional(),
+    itemId: IdSchema.optional(),
+    slideIndex: z.number().int().nonnegative(),
+  })
+  .refine((c) => c.entryId === undefined || c.itemId === undefined, {
+    message: "protocol.cursor.entryOrItem",
+  });
 export type Cursor = z.infer<typeof CursorSchema>;
 
 export const LayerStateSchema = z.strictObject({
@@ -73,6 +83,12 @@ export const LiveStateSchema = z.strictObject({
   rev: z.number().int().nonnegative(),
   cursor: CursorSchema,
   preview: CursorSchema,
+  /**
+   * Elementi mandati in anteprima o in onda senza passare dalla scaletta (dal
+   * protocollo 1.5): copie tenute solo in memoria, mai salvate nello show. Il
+   * motore toglie quelle che non sono piu' ne' in programma ne' in anteprima.
+   */
+  direct: z.record(IdSchema, ItemSchema).optional(),
   layers: z.strictObject(
     Object.fromEntries(LAYER_IDS.map((id) => [id, LayerStateSchema])) as Record<
       (typeof LAYER_IDS)[number],
@@ -117,6 +133,20 @@ export const StateDocumentSchema = z.strictObject({
   live: LiveStateSchema,
 });
 export type StateDocument = z.infer<typeof StateDocumentSchema>;
+
+/** Elemento con quell'id: dello show o fuori scaletta (`live.direct`). */
+export function itemById(doc: StateDocument, id: string | undefined): Item | undefined {
+  if (id === undefined) return undefined;
+  return doc.show.items[id] ?? doc.live.direct?.[id];
+}
+
+/** Elemento a cui punta un cursore (programma o anteprima), se c'e'. */
+export function cursorItem(doc: StateDocument, cursor: Cursor): Item | undefined {
+  if (cursor.itemId !== undefined) return doc.live.direct?.[cursor.itemId];
+  if (cursor.entryId === undefined) return undefined;
+  const entry = doc.show.playlist.find((e) => e.id === cursor.entryId);
+  return entry === undefined ? undefined : doc.show.items[entry.itemId];
+}
 
 /** Monitor collegati al computer del motore. */
 export const DisplayInfoSchema = z.strictObject({

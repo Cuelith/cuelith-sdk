@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILTIN_ROLES,
+  CursorSchema,
   EngineMethods,
   pluginRole,
   PluginHostMethods,
@@ -33,6 +34,28 @@ describe("metodi", () => {
     expect(
       EngineMethods["session.pair"].params.safeParse({ code: "123456", name: "Tablet" }).success,
     ).toBe(true);
+  });
+});
+
+describe("elementi fuori scaletta (protocollo 1.5)", () => {
+  const id = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+
+  it("una posizione e' una voce della scaletta oppure un elemento diretto, non tutti e due", () => {
+    const goto = EngineMethods["cue.goto"].params;
+    expect(goto.safeParse({ entryId: id, slideIndex: 0 }).success).toBe(true);
+    expect(goto.safeParse({ itemId: id, slideIndex: 2 }).success).toBe(true);
+    expect(goto.safeParse({ entryId: id, itemId: id, slideIndex: 0 }).success).toBe(false);
+    expect(CursorSchema.safeParse({ entryId: id, itemId: id, slideIndex: 0 }).success).toBe(false);
+    expect(CursorSchema.safeParse({ itemId: id, slideIndex: 0 }).success).toBe(true);
+  });
+
+  it("cue.send manda un elemento della libreria in anteprima o in onda", () => {
+    const send = EngineMethods["cue.send"];
+    expect(send.scope).toBe("cue");
+    expect(send.params.safeParse({ libraryItemId: id, to: "program" }).success).toBe(true);
+    expect(send.params.safeParse({ libraryItemId: id, to: "altrove" }).success).toBe(false);
+    // I moduli (es. Canti) possono usarlo: rientra nella regia.
+    expect(roleAllows(pluginRole("cuelith.songs"), "cue.send", send.scope)).toBe(true);
   });
 });
 

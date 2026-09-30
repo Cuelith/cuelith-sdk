@@ -1,4 +1,5 @@
 import {
+  CUE_KEYS,
   HostToPanelSchema,
   PANEL_CONNECT,
   PANEL_HOST_METHODS,
@@ -89,6 +90,59 @@ export function connectPanel(target: ConnectTarget = window): Promise<Panel> {
   });
 }
 
+const CUE_KEY_SET: ReadonlySet<string> = new Set(CUE_KEYS);
+
+/**
+ * I tasti della regia (frecce, Invio, Esc, V C P B I E O...) premuti nel
+ * pannello, fuori da un campo di testo, vanno alla postazione: il pannello e'
+ * isolato e senza questo li "mangerebbe" dopo ogni clic. Spazio e Invio
+ * restano al pulsante del pannello solo se ci si e' arrivati con la tastiera
+ * (dopo un clic col mouse comandano la regia, come nella postazione).
+ */
+function forwardCueKeys(forward: (key: string) => void): void {
+  if (typeof window === "undefined") return;
+  let keyboardFocused: Element | null = null;
+  let lastInputWasKeyboard = false;
+  window.addEventListener(
+    "pointerdown",
+    () => {
+      lastInputWasKeyboard = false;
+    },
+    true,
+  );
+  window.addEventListener(
+    "keydown",
+    () => {
+      lastInputWasKeyboard = true;
+    },
+    true,
+  );
+  window.addEventListener(
+    "focusin",
+    (event) => {
+      keyboardFocused =
+        lastInputWasKeyboard && event.target instanceof Element ? event.target : null;
+    },
+    true,
+  );
+  window.addEventListener("keydown", (event) => {
+    if (event.defaultPrevented || event.repeat) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    if (!CUE_KEY_SET.has(key)) return;
+    const target = event.target;
+    if (target instanceof HTMLElement) {
+      if (target.isContentEditable || target.closest("input, textarea, select") !== null) return;
+      const control = target.closest("button, a[href], summary, [role='button']");
+      if ((key === " " || key === "Enter") && control !== null && control === keyboardFocused) {
+        return;
+      }
+    }
+    event.preventDefault();
+    forward(key);
+  });
+}
+
 function start(port: MessagePort, ready: (panel: Panel) => void): void {
   const pending = new Map<number, Pending>();
   const stateListeners = new Set<(state: StateDocument) => void>();
@@ -129,6 +183,9 @@ function start(port: MessagePort, ready: (panel: Panel) => void): void {
         if (info === undefined) throw new Error("pannello non collegato");
         return info;
       };
+      forwardCueKeys((key) => {
+        void send(PANEL_HOST_METHODS.key, { key }).catch(() => undefined);
+      });
       ready({
         get pluginId() {
           return current().pluginId;
