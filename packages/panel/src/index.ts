@@ -37,6 +37,8 @@ export interface Panel {
   readonly lang: Lang;
   /** Stato attuale dello show (sola lettura). */
   readonly state: StateDocument;
+  /** Contesto passato da chi ha aperto il pannello (es. l'id del canto da modificare). */
+  readonly context: unknown;
   /** Testo tradotto di una chiave del modulo. */
   t(key: string, params?: MessageParams): string;
   /** Comando al motore; solo quelli consentiti ai moduli (altrimenti 4030). */
@@ -48,6 +50,10 @@ export interface Panel {
   notify(key: string, params?: Readonly<Record<string, string>>): Promise<void>;
   /** Chiude il pannello (per i pannelli al centro). */
   close(): Promise<void>;
+  /** Apre un altro pannello del modulo passandogli un contesto. */
+  openPanel(panelId: string, context?: unknown): Promise<void>;
+  /** Fa salvare un file all'operatore (la postazione chiede dove). */
+  saveFile(name: string, content: string, mime: string): Promise<void>;
   /** Chiamata a ogni cambio dello stato; restituisce la funzione per smettere. */
   onState(listener: (state: StateDocument) => void): () => void;
   /** Chiamata quando cambia la lingua o i testi. */
@@ -89,7 +95,14 @@ function start(port: MessagePort, ready: (panel: Panel) => void): void {
   const langListeners = new Set<(lang: Lang) => void>();
   let next = 1;
   let info:
-    | { pluginId: string; panelId: string; lang: Lang; catalog: Catalog; state: StateDocument }
+    | {
+        pluginId: string;
+        panelId: string;
+        lang: Lang;
+        catalog: Catalog;
+        state: StateDocument;
+        context: unknown;
+      }
     | undefined;
 
   const send = (method: string, params: unknown): Promise<unknown> =>
@@ -110,6 +123,7 @@ function start(port: MessagePort, ready: (panel: Panel) => void): void {
         lang: message.lang,
         catalog: message.catalog,
         state: message.state,
+        context: message.context,
       };
       const current = () => {
         if (info === undefined) throw new Error("pannello non collegato");
@@ -128,6 +142,9 @@ function start(port: MessagePort, ready: (panel: Panel) => void): void {
         get state() {
           return current().state;
         },
+        get context() {
+          return current().context;
+        },
         t: (key, params) => translate(current().catalog, current().lang, key, params),
         call: (method, params) => send(method, params) as Promise<never>,
         notify: async (key, params) => {
@@ -135,6 +152,12 @@ function start(port: MessagePort, ready: (panel: Panel) => void): void {
         },
         close: async () => {
           await send(PANEL_HOST_METHODS.close, {});
+        },
+        openPanel: async (panel, context) => {
+          await send(PANEL_HOST_METHODS.openPanel, { panel, context });
+        },
+        saveFile: async (name, content, mime) => {
+          await send(PANEL_HOST_METHODS.saveFile, { name, content, mime });
         },
         onState: (listener) => {
           stateListeners.add(listener);

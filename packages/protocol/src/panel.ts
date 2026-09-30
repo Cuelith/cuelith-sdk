@@ -27,7 +27,22 @@ export const PANEL_HOST_METHODS = {
   notify: "host.notify",
   /** Chiude il pannello (per i pannelli "center"). */
   close: "host.close",
+  /** Apre un altro pannello dello stesso modulo, con un contesto (es. il canto da modificare). */
+  openPanel: "host.openPanel",
+  /** Fa salvare un file all'operatore (es. un canto esportato): la postazione chiede dove. */
+  saveFile: "host.saveFile",
 } as const;
+
+export const OpenPanelParamsSchema = z.strictObject({
+  panel: z.string().min(1),
+  context: z.unknown().optional(),
+});
+
+export const SaveFileParamsSchema = z.strictObject({
+  name: z.string().min(1).max(200),
+  content: z.string().max(20 * 1024 * 1024),
+  mime: z.string().min(1).max(100),
+});
 
 export const HostToPanelSchema = z.discriminatedUnion("type", [
   z.strictObject({
@@ -38,6 +53,8 @@ export const HostToPanelSchema = z.discriminatedUnion("type", [
     /** Testi del modulo (le sue chiavi) nella lingua attiva. */
     catalog: CatalogSchema,
     state: StateDocumentSchema,
+    /** Cio' che un altro pannello del modulo ha passato aprendo questo. */
+    context: z.unknown().optional(),
   }),
   z.strictObject({ type: z.literal("state"), state: StateDocumentSchema }),
   z.strictObject({ type: z.literal("catalog"), lang: LangSchema, catalog: CatalogSchema }),

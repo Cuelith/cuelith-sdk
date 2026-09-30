@@ -418,6 +418,8 @@ export const EngineMethods = {
       libraryId: IdSchema.optional(),
       query: z.string().max(200).optional(),
       tag: TagSchema.optional(),
+      /** Solo elementi di questo tipo, es. i canti di un modulo (dal protocollo 1.4). */
+      type: QualifiedTypeSchema.optional(),
       offset: Index.optional(),
       limit: z.number().int().min(1).max(500).optional(),
     }),

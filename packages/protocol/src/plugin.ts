@@ -83,7 +83,19 @@ export const ContributesSchema = z.strictObject({
       }),
     )
     .optional(),
-  itemTypes: z.array(Titled).optional(),
+  /**
+   * Tipi di elemento del modulo. `editor` = pannello del modulo che li
+   * modifica: "Modifica" apre quello invece dell'editor dei testi (dal protocollo 1.4).
+   */
+  itemTypes: z
+    .array(
+      z.strictObject({
+        id: LocalIdSchema,
+        title: MessageKeySchema,
+        editor: LocalIdSchema.optional(),
+      }),
+    )
+    .optional(),
   sourceTypes: z.array(Titled).optional(),
   outputKinds: z.array(Titled).optional(),
   lookTemplates: z
@@ -241,6 +253,11 @@ export const PluginManifestSchema = ManifestShape.superRefine((m, ctx) => {
   // moduli da cui dipende: mai pannelli di moduli che potrebbero mancare.
   const candidates = [m.id, ...Object.keys(m.dependencies)];
   const ownPanels = new Set((c.panels ?? []).map((p) => `${m.id}.${p.id}`));
+  c.itemTypes?.forEach((type, i) => {
+    if (type.editor !== undefined && !ownPanels.has(`${m.id}.${type.editor}`)) {
+      issue("protocol.manifest.panelNotDeclared", ["contributes", "itemTypes", i, "editor"]);
+    }
+  });
   c.modes?.forEach((mode, i) => {
     for (const [area, panels] of Object.entries(mode.layout.panels)) {
       for (const panel of areaPanelIds(panels)) {
