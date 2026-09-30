@@ -2,7 +2,7 @@ import { valid } from "semver";
 import { z } from "zod";
 import { LocalIdSchema, PluginIdSchema, QualifiedTypeSchema, providerOf } from "./ids.js";
 import { LangSchema, MessageKeySchema } from "./locale.js";
-import { CORE_PANELS, ModeContributionSchema } from "./mode.js";
+import { areaPanelIds, CORE_PANELS, ModeContributionSchema } from "./mode.js";
 import { SemverRangeSchema } from "./show.js";
 
 // Manifest di un modulo: cuelith-plugin.json (cap. 24), con le aggiunte
@@ -215,14 +215,16 @@ export const PluginManifestSchema = ManifestShape.superRefine((m, ctx) => {
   const candidates = [m.id, ...Object.keys(m.dependencies)];
   const ownPanels = new Set((c.panels ?? []).map((p) => `${m.id}.${p.id}`));
   c.modes?.forEach((mode, i) => {
-    for (const [area, panel] of Object.entries(mode.layout.panels)) {
-      const path = ["contributes", "modes", i, "layout", "panels", area];
-      const provider = providerOf(panel, candidates);
-      if (provider === undefined) issue("protocol.manifest.panelNotAvailable", path);
-      else if (provider === "core" && !(CORE_PANELS as readonly string[]).includes(panel)) {
-        issue("protocol.manifest.panelNotAvailable", path);
-      } else if (provider === m.id && !ownPanels.has(panel))
-        issue("protocol.manifest.panelNotDeclared", path);
+    for (const [area, panels] of Object.entries(mode.layout.panels)) {
+      for (const panel of areaPanelIds(panels)) {
+        const path = ["contributes", "modes", i, "layout", "panels", area];
+        const provider = providerOf(panel, candidates);
+        if (provider === undefined) issue("protocol.manifest.panelNotAvailable", path);
+        else if (provider === "core" && !(CORE_PANELS as readonly string[]).includes(panel)) {
+          issue("protocol.manifest.panelNotAvailable", path);
+        } else if (provider === m.id && !ownPanels.has(panel))
+          issue("protocol.manifest.panelNotDeclared", path);
+      }
     }
   });
 

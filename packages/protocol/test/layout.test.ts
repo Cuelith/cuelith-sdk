@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { layoutAreaRects, LayoutSchema, type Layout } from "../src/index.js";
+import { areaPanelIds, layoutAreaRects, LayoutSchema, type Layout } from "../src/index.js";
 
 // I layout delle modalita' previste dal documento (cap. 16) devono essere
 // esprimibili con lo schema: se uno di questi test fallisce, lo schema non
@@ -179,6 +179,31 @@ describe("LayoutSchema", () => {
   it("rifiuta dimensioni di traccia non valide", () => {
     expect(messages({ ...presenta, columns: ["22%", "40fr", "38fr"] })).toContain(
       "protocol.layout.trackInvalid",
+    );
+  });
+});
+
+describe("aree a schede (protocollo 1.2)", () => {
+  const tabbed = (panels: Layout["panels"][string]): Layout => ({
+    ...presenta,
+    panels: { ...presenta.panels, playlist: panels },
+  });
+
+  it("un'area puo' ospitare piu' pannelli come schede", () => {
+    const layout = tabbed(["core.playlist", "core.library"]);
+    expect(LayoutSchema.safeParse(layout).success).toBe(true);
+    expect(areaPanelIds(layout.panels["playlist"] ?? "")).toEqual([
+      "core.playlist",
+      "core.library",
+    ]);
+    expect(areaPanelIds("core.slides")).toEqual(["core.slides"]);
+  });
+
+  it("le schede sono almeno due e senza ripetizioni", () => {
+    expect(LayoutSchema.safeParse(tabbed(["core.playlist"])).success).toBe(false);
+    const repeated = LayoutSchema.safeParse(tabbed(["core.playlist", "core.playlist"]));
+    expect(repeated.error?.issues.map((i) => i.message)).toContain(
+      "protocol.layout.duplicatePanel",
     );
   });
 });

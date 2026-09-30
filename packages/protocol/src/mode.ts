@@ -71,14 +71,31 @@ export function layoutAreaRects(
   return rects;
 }
 
+/** Un pannello, o piu' pannelli a schede (almeno due, senza ripetizioni). */
+export const AreaPanelsSchema = z.union([
+  QualifiedTypeSchema,
+  z
+    .array(QualifiedTypeSchema)
+    .min(2)
+    .refine((ids) => new Set(ids).size === ids.length, "protocol.layout.duplicatePanel"),
+]);
+export type AreaPanels = z.infer<typeof AreaPanelsSchema>;
+
+/** Pannelli di un'area come elenco (uno solo se non ci sono schede). */
+export const areaPanelIds = (panels: AreaPanels): readonly string[] =>
+  typeof panels === "string" ? [panels] : panels;
+
 export const LayoutSchema = z
   .strictObject({
     columns: z.array(TrackSizeSchema).min(1),
     rows: z.array(TrackSizeSchema).min(1),
     /** Matrice righe x colonne di nomi d'area; "." = vuoto. */
     areas: z.array(z.array(z.union([AreaNameSchema, z.literal(EMPTY_AREA)]))).min(1),
-    /** Area -> id qualificato del pannello, es. "core.slides", "cuelith.bible.search". */
-    panels: z.record(AreaNameSchema, QualifiedTypeSchema),
+    /**
+     * Area -> id qualificato del pannello, es. "core.slides", oppure un elenco
+     * di pannelli mostrati come schede nella stessa area (dal protocollo 1.2).
+     */
+    panels: z.record(AreaNameSchema, AreaPanelsSchema),
   })
   .superRefine((layout, ctx) => {
     if (layout.areas.length !== layout.rows.length) {
