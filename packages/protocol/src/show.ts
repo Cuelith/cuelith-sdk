@@ -147,6 +147,15 @@ export const OUTPUT_KINDS = ["display", "ndi", "stream", "record", "virtual"] as
 export const OutputKindSchema = z.enum(OUTPUT_KINDS);
 export type OutputKind = z.infer<typeof OutputKindSchema>;
 
+/** Destinazione di un'uscita "display" del nucleo. */
+export const DisplayTargetSchema = z.strictObject({
+  /** Id del monitor come lo riporta display.list. */
+  displayId: z.string().min(1),
+  /** "fullscreen" = tutto il monitor; "window" = finestra normale (prove, un solo monitor). */
+  mode: z.enum(["fullscreen", "window"]),
+});
+export type DisplayTarget = z.infer<typeof DisplayTargetSchema>;
+
 export const OutputFormatSchema = z.strictObject({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
@@ -313,6 +322,11 @@ export function checkShowIntegrity(show: z.infer<typeof ShowShape>): IntegrityIs
   for (const output of Object.values(show.outputs)) {
     const path = ["outputs", output.id, "feed"];
     const expected = output.kind === "display" ? "core" : undefined;
+    if (output.kind === "display" && !DisplayTargetSchema.safeParse(output.target).success) {
+      add("protocol.show.displayTargetInvalid", ["outputs", output.id, "target"], {
+        id: output.id,
+      });
+    }
     if (expected !== undefined && output.provider !== expected) {
       add("protocol.show.providerMismatch", ["outputs", output.id, "provider"], {
         type: output.kind,

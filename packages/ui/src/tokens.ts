@@ -54,7 +54,10 @@ export type FontToken = keyof typeof fonts;
 
 /** Nome della variabile CSS di un token: bg2 -> --cl-bg-2, liveBg -> --cl-live-bg. */
 export function cssVar(token: string): string {
-  return `--cl-${token.replace(/([A-Z])/g, "-$1").replace(/(\d+)/g, "-$1").toLowerCase()}`;
+  return `--cl-${token
+    .replace(/([A-Z])/g, "-$1")
+    .replace(/(\d+)/g, "-$1")
+    .toLowerCase()}`;
 }
 
 /** Colore esadecimale "#RRGGBB" come numero, per le API WebGL. */

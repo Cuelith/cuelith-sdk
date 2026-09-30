@@ -129,3 +129,13 @@ describe("slideSequence", () => {
     ]);
   });
 });
+
+describe("uscite display", () => {
+  it("richiedono monitor e modo validi", () => {
+    const show = makeShow();
+    const output = Object.values(show.outputs)[0];
+    if (output === undefined) throw new Error("uscita mancante");
+    output.target = { displayId: "2" };
+    expect(messages(show)).toContain("protocol.show.displayTargetInvalid");
+  });
+});

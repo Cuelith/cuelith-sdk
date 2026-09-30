@@ -25,7 +25,8 @@ describe("token", () => {
 
   it("genera un CSS con tutti i token", () => {
     const css = tokensCss();
-    for (const key of [...Object.keys(colors), ...Object.keys(fonts)]) expect(css).toContain(cssVar(key));
+    for (const key of [...Object.keys(colors), ...Object.keys(fonts)])
+      expect(css).toContain(cssVar(key));
   });
 
   it("converte i colori per WebGL", () => {
