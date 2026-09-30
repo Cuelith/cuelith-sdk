@@ -41,6 +41,16 @@ export const RegistryPluginSchema = z.strictObject({
   family: PluginFamilySchema,
   /** Modulo controllato dall'organizzazione Cuelith. */
   verified: z.boolean(),
+  /**
+   * Icona del modulo (dal protocollo 1.6) come immagine SVG incorporata
+   * (data:image/svg+xml;base64,...): la CI del registry la prende dal pacchetto
+   * e controlla che sia unica. Il marketplace la mostra prima di installare.
+   */
+  icon: z
+    .string()
+    .regex(/^data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+$/, "protocol.registry.iconInvalid")
+    .max(64 * 1024)
+    .optional(),
   /** Dalla piu' recente alla piu' vecchia. */
   versions: z.array(RegistryVersionSchema).min(1),
 });

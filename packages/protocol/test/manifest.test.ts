@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PluginManifestSchema, type PluginManifest } from "../src/index.js";
+import { isActivePlugin, PluginManifestSchema, type PluginManifest } from "../src/index.js";
 import { bibleManifest, italianManifest } from "./fixtures.js";
 
 function messages(manifest: unknown): string[] {
@@ -152,5 +152,29 @@ describe("guida al primo uso e documentazione (protocollo 1.4)", () => {
     expect(result.error?.issues.map((i) => i.message)).toContain(
       "protocol.manifest.keyOutsideNamespace",
     );
+  });
+});
+
+describe("icona e moduli attivi (protocollo 1.6)", () => {
+  it("l'icona e' un file SVG del pacchetto", () => {
+    expect(PluginManifestSchema.safeParse({ ...bibleManifest(), icon: "icon.svg" }).success).toBe(
+      true,
+    );
+    expect(messages({ ...bibleManifest(), icon: "icon.png" })).toContain(
+      "protocol.manifest.iconSvg",
+    );
+    expect(PluginManifestSchema.safeParse({ ...bibleManifest(), icon: "../x.svg" }).success).toBe(
+      false,
+    );
+  });
+
+  it("attivo = ha uno strumento nella colonna di sinistra; le lingue sono passive", () => {
+    expect(isActivePlugin(bibleManifest())).toBe(true);
+    expect(isActivePlugin(italianManifest())).toBe(false);
+    expect(
+      isActivePlugin({
+        contributes: { panels: [{ id: "editor", title: "a.b", placement: "center" }] },
+      }),
+    ).toBe(false);
   });
 });

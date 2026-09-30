@@ -76,8 +76,11 @@ export const ContributesSchema = z.strictObject({
         icon: z.string().min(1).optional(),
         /**
          * Dove compare nelle modalita' del nucleo (dal protocollo 1.4): "side" =
-         * scheda nella colonna di sinistra (elenchi); "center" = al posto della
-         * colonna Slide finche' e' aperto (editor), col programma sempre visibile.
+         * scheda nella colonna di sinistra (lo strumento del modulo); "center" =
+         * editor, aperto su richiesta in una finestra propria (dal protocollo
+         * 1.6: mai al posto della zona centrale, che resta dell'operatore).
+         * Un modulo con un pannello "side" e' "attivo" e ha la sua icona nella
+         * colonna degli strumenti; gli altri lavorano in background ("passivi").
          */
         placement: z.enum(["side", "center"]).optional(),
       }),
@@ -147,6 +150,15 @@ const ManifestShape = z.strictObject({
   family: PluginFamilySchema,
   engines: z.strictObject({ cuelith: SemverRangeSchema, protocol: SemverRangeSchema }),
   runtime: RuntimeSchema,
+  /**
+   * Icona del modulo (dal protocollo 1.6): file SVG nel pacchetto, unico nel
+   * registry. La mostrano la colonna degli strumenti, il marketplace e i moduli
+   * installati (sempre come immagine: un SVG cosi' non esegue codice).
+   */
+  icon: RelativePathSchema.refine(
+    (p) => p.toLowerCase().endsWith(".svg"),
+    "protocol.manifest.iconSvg",
+  ).optional(),
   /** Pannelli, caricati in iframe isolati. */
   ui: z.strictObject({ entry: RelativePathSchema }).optional(),
   permissions: z.array(PermissionSchema),
@@ -277,3 +289,12 @@ export const PluginManifestSchema = ManifestShape.superRefine((m, ctx) => {
   }
 });
 export type PluginManifest = z.infer<typeof PluginManifestSchema>;
+
+/**
+ * Modulo "attivo": ha uno strumento (pannello laterale) nella colonna di
+ * sinistra. Gli altri sono "passivi" (lingue, servizi): lavorano in background
+ * e si configurano dalla finestra Moduli. Dal protocollo 1.6.
+ */
+export function isActivePlugin(manifest: Pick<PluginManifest, "contributes">): boolean {
+  return (manifest.contributes.panels ?? []).some((p) => (p.placement ?? "side") === "side");
+}
