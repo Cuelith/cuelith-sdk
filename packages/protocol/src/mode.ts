@@ -168,5 +168,18 @@ export const CORE_PANELS = [
   "core.preview",
   "core.outputs",
   "core.editor",
+  // Dal protocollo 1.7, per le disposizioni Band, Conferenza e Regia:
+  /** Sezioni dell'elemento in onda come grossi pulsanti (V1 C1 B1...). */
+  "core.sections",
+  /** Striscia dell'ordine di proiezione. */
+  "core.order",
+  /** Timer della regia con i colori del tempo. */
+  "core.timer",
+  /** Messaggio ai monitor del palco. */
+  "core.stage",
+  /** Note della slide in onda e della successiva. */
+  "core.notes",
+  /** Comandi tra anteprima e programma: TAKE, avanti, indietro, nero. */
+  "core.transitions",
 ] as const;
 export type CorePanelId = (typeof CORE_PANELS)[number];

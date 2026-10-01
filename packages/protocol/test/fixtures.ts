@@ -90,7 +90,7 @@ export function bibleManifest(): PluginManifest {
     $schema: "https://cuelith.github.io/cuelith-sdk/schema/plugin-1.json",
     id: "cuelith.bible",
     name: "Bibbia multi-versione",
-    version: "1.6.0",
+    version: "1.7.0",
     publisher: "Cuelith",
     license: "Apache-2.0",
     repository: "https://github.com/Cuelith/plugin-bible",

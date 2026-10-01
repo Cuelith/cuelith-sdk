@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILTIN_ROLES,
+  formatTimer,
+  timerPhase,
+  timerRemaining,
+  TimerSchema,
   CursorSchema,
   EngineMethods,
   pluginRole,
@@ -142,5 +146,46 @@ describe("librerie organizzate (protocollo 1.3)", () => {
       params.safeParse({ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", category: null, favorite: true })
         .success,
     ).toBe(true);
+  });
+});
+
+describe("timer e messaggi al palco (protocollo 1.7)", () => {
+  it("il timer conta dalla partenza; fermo tiene il rimanente", () => {
+    const start = Date.parse("2026-10-01T10:00:00Z");
+    const running = {
+      durationMs: 600_000,
+      remainingMs: 600_000,
+      startedAt: new Date(start).toISOString(),
+    };
+    expect(timerRemaining(running, start + 90_000)).toBe(510_000);
+    expect(timerRemaining({ durationMs: 600_000, remainingMs: 42_000 }, start)).toBe(42_000);
+    expect(TimerSchema.safeParse(running).success).toBe(true);
+  });
+
+  it("colori del tempo: verde, ambra sotto 2 minuti, rosso sotto 30 secondi e oltre", () => {
+    expect(timerPhase(121_000)).toBe("ok");
+    expect(timerPhase(120_000)).toBe("warning");
+    expect(timerPhase(30_000)).toBe("danger");
+    expect(timerPhase(-5_000)).toBe("danger");
+  });
+
+  it("formato: minuti:secondi, ore se servono, meno oltre il tempo", () => {
+    expect(formatTimer(760_000)).toBe("12:40");
+    expect(formatTimer(3_900_000)).toBe("1:05:00");
+    expect(formatTimer(-42_000)).toBe("-0:42");
+    expect(formatTimer(0)).toBe("0:00");
+    expect(formatTimer(400)).toBe("0:01");
+  });
+
+  it("i comandi stanno nella regia, anche per i moduli", () => {
+    for (const name of [
+      "timer.set",
+      "timer.start",
+      "timer.pause",
+      "timer.reset",
+      "message.send",
+    ] as const) {
+      expect(EngineMethods[name].scope).toBe("cue");
+    }
   });
 });

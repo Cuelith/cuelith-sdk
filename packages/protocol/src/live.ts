@@ -37,8 +37,63 @@ export const OutputLiveSchema = z.strictObject({
   status: z.enum(["ok", "error"]),
   /** Chiave di traduzione dell'errore. */
   error: z.string().optional(),
+  /**
+   * Messaggio per chi guarda questa uscita (es. il relatore sul monitor del
+   * palco: "5 minuti"), dal protocollo 1.7. Lo mostrano i look col layer "message".
+   */
+  message: z.string().max(500).optional(),
 });
 export type OutputLive = z.infer<typeof OutputLiveSchema>;
+
+/**
+ * Timer della regia (dal protocollo 1.7): conto alla rovescia condiviso da
+ * tutte le postazioni e mostrato sui monitor del palco. In corsa conta da
+ * `startedAt`; in pausa tiene i millisecondi rimasti. Sotto zero = tempo scaduto.
+ */
+export const TimerSchema = z.strictObject({
+  durationMs: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60 * 60 * 1000),
+  /** Millisecondi rimasti quando e' fermo (o al momento della partenza). */
+  remainingMs: z
+    .number()
+    .int()
+    .min(-24 * 60 * 60 * 1000)
+    .max(24 * 60 * 60 * 1000),
+  /** Istante della partenza, se sta correndo. */
+  startedAt: z.iso.datetime().optional(),
+});
+export type Timer = z.infer<typeof TimerSchema>;
+
+/** Millisecondi rimasti adesso (negativi = oltre il tempo). */
+export function timerRemaining(timer: Timer, now: number = Date.now()): number {
+  if (timer.startedAt === undefined) return timer.remainingMs;
+  return timer.remainingMs - (now - Date.parse(timer.startedAt));
+}
+
+/** Fase del timer per i colori: verde, ambra sotto i 2 minuti, rosso sotto i 30 secondi e oltre. */
+export function timerPhase(remainingMs: number): "ok" | "warning" | "danger" {
+  if (remainingMs <= 30_000) return "danger";
+  if (remainingMs <= 120_000) return "warning";
+  return "ok";
+}
+
+/** "12:40", "1:05:00", "-0:42" (oltre il tempo). */
+export function formatTimer(remainingMs: number): string {
+  const negative = remainingMs < 0;
+  const total = Math.ceil(Math.abs(remainingMs) / 1000);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const text =
+    hours > 0
+      ? `${String(hours)}:${pad(minutes)}:${pad(seconds)}`
+      : `${String(minutes)}:${pad(seconds)}`;
+  return negative && total > 0 ? `-${text}` : text;
+}
 
 export const CLIENT_KINDS = ["client", "renderer", "plugin"] as const;
 export const ClientKindSchema = z.enum(CLIENT_KINDS);
@@ -89,6 +144,8 @@ export const LiveStateSchema = z.strictObject({
    * motore toglie quelle che non sono piu' ne' in programma ne' in anteprima.
    */
   direct: z.record(IdSchema, ItemSchema).optional(),
+  /** Timer della regia (dal protocollo 1.7), se impostato. */
+  timer: TimerSchema.optional(),
   layers: z.strictObject(
     Object.fromEntries(LAYER_IDS.map((id) => [id, LayerStateSchema])) as Record<
       (typeof LAYER_IDS)[number],

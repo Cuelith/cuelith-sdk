@@ -222,7 +222,28 @@ export const EngineMethods = {
     Created,
   ),
   "layer.clear": spec("cue", z.strictObject({ layer: LayerIdSchema }), Rev),
-  "message.send": spec("cue", z.strictObject({ outputId: IdSchema, text: z.string() }), Rev),
+  /** Messaggio su un'uscita (es. al relatore sul palco); testo vuoto = lo toglie. */
+  "message.send": spec(
+    "cue",
+    z.strictObject({ outputId: IdSchema, text: z.string().max(500) }),
+    Rev,
+  ),
+  /** Timer della regia (dal protocollo 1.7): durata, partenza, pausa, azzeramento. */
+  "timer.set": spec(
+    "cue",
+    z.strictObject({
+      durationMs: z
+        .number()
+        .int()
+        .min(0)
+        .max(24 * 60 * 60 * 1000),
+    }),
+    Rev,
+  ),
+  "timer.start": spec("cue", Empty, Rev),
+  "timer.pause": spec("cue", Empty, Rev),
+  "timer.reset": spec("cue", Empty, Rev),
+  "timer.clear": spec("cue", Empty, Rev),
 
   // ---- comandi delle uscite ----
   "output.setFeed": spec(
