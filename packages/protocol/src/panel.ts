@@ -21,6 +21,15 @@ const RpcErrorObjectSchema = z.object({
 /** Messaggio con cui la postazione consegna la porta al pannello (via postMessage). */
 export const PANEL_CONNECT = "cuelith:connect";
 
+/**
+ * Il pannello annuncia alla postazione di essere pronto a ricevere la porta
+ * (dal protocollo 1.8). Serve quando la pagina del pannello finisce di
+ * caricarsi tardi, es. uno script con `await` in cima: senza, la postazione
+ * aspetterebbe il caricamento e il pannello la porta, per sempre. La
+ * postazione puo' collegare un pannello piu' volte: vale l'ultima porta.
+ */
+export const PANEL_READY = "cuelith:ready";
+
 /** Comandi della postazione stessa, non del motore. */
 export const PANEL_HOST_METHODS = {
   /** Avviso all'operatore: chiave di traduzione del modulo. */

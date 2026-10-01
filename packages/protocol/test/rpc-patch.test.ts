@@ -11,6 +11,7 @@ import {
   rpcRequest,
   StateDocumentSchema,
   type StateDocument,
+  isOnAir,
 } from "../src/index.js";
 import { makeShow } from "./fixtures.js";
 
@@ -96,5 +97,24 @@ describe("patch dello stato", () => {
     expect(isNextRev(4, 5)).toBe(true);
     expect(isNextRev(4, 6)).toBe(false);
     expect(isNextRev(4, 4)).toBe(false);
+  });
+});
+
+describe("in onda (decisione 0004)", () => {
+  it("in onda solo con una slide in programma e un'uscita non in nero", () => {
+    const state = makeState();
+    const outputIds = Object.keys(state.show.outputs);
+    const live = { blackout: false, freeze: false, status: "ok" as const };
+    state.live.outputs = Object.fromEntries(outputIds.map((id) => [id, { ...live }]));
+    expect(isOnAir(state)).toBe(false);
+
+    state.live.cursor = { entryId: state.show.playlist[0]?.id ?? "", slideIndex: 0 };
+    expect(isOnAir(state)).toBe(true);
+
+    for (const id of outputIds) state.live.outputs[id] = { ...live, blackout: true };
+    expect(isOnAir(state)).toBe(false);
+    const first = outputIds[0] ?? "";
+    state.live.outputs[first] = { ...live };
+    expect(isOnAir(state)).toBe(true);
   });
 });

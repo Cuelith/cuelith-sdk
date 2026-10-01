@@ -205,6 +205,20 @@ export function cursorItem(doc: StateDocument, cursor: Cursor): Item | undefined
   return entry === undefined ? undefined : doc.show.items[entry.itemId];
 }
 
+/**
+ * "In onda" (decisione 0004): il programma ha una slide e almeno un'uscita la
+ * mostra (non in nero). In onda non si installano aggiornamenti e non si fa
+ * nulla che possa interrompere le uscite.
+ */
+export function isOnAir(doc: StateDocument): boolean {
+  const program = doc.live.cursor;
+  if (program.entryId === undefined && program.itemId === undefined) return false;
+  return Object.keys(doc.show.outputs).some((id) => {
+    const live = doc.live.outputs[id];
+    return live !== undefined && !live.blackout;
+  });
+}
+
 /** Monitor collegati al computer del motore. */
 export const DisplayInfoSchema = z.strictObject({
   id: z.string().min(1),

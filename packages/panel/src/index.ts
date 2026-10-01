@@ -2,6 +2,7 @@ import {
   CUE_KEYS,
   HostToPanelSchema,
   PANEL_CONNECT,
+  PANEL_READY,
   PANEL_HOST_METHODS,
   translate,
   type Catalog,
@@ -72,21 +73,33 @@ export interface ConnectTarget {
   removeEventListener(type: "message", listener: (event: MessageEvent) => void): void;
 }
 
+/** A chi annunciare che il pannello e' pronto (la postazione); sostituibile nelle prove. */
+export interface AnnounceTarget {
+  postMessage(message: unknown, targetOrigin: string): void;
+}
+
 /**
  * Collega il pannello alla postazione. Il pannello gira in un iframe isolato:
  * la postazione gli consegna una porta privata e da li' passano stato, testi e
- * comandi. Si chiama una volta, all'avvio del pannello.
+ * comandi. Si chiama una volta, all'avvio del pannello: annuncia subito che e'
+ * pronto (PANEL_READY), cosi' funziona anche se la pagina finisce di
+ * caricarsi dopo (es. `await connectPanel()` in cima allo script). Se la
+ * postazione lo ricollega, vale la porta nuova.
  */
-export function connectPanel(target: ConnectTarget = window): Promise<Panel> {
+export function connectPanel(
+  target: ConnectTarget = window,
+  announce: AnnounceTarget | undefined = typeof window === "undefined" ? undefined : window.parent,
+): Promise<Panel> {
   return new Promise((resolve) => {
-    const onConnect = (event: MessageEvent) => {
+    const connection = createConnection(resolve);
+    target.addEventListener("message", (event: MessageEvent) => {
       const data = event.data as { type?: unknown } | null;
       const port = event.ports[0];
       if (data?.type !== PANEL_CONNECT || port === undefined) return;
-      target.removeEventListener("message", onConnect);
-      start(port, resolve);
-    };
-    target.addEventListener("message", onConnect);
+      connection.attach(port);
+    });
+    // Origine opaca (sandbox): l'annuncio non contiene nulla di riservato.
+    announce?.postMessage({ type: PANEL_READY }, "*");
   });
 }
 
@@ -143,7 +156,9 @@ function forwardCueKeys(forward: (key: string) => void): void {
   });
 }
 
-function start(port: MessagePort, ready: (panel: Panel) => void): void {
+function createConnection(ready: (panel: Panel) => void): { attach(port: MessagePort): void } {
+  let port: MessagePort | undefined;
+  let resolved = false;
   const pending = new Map<number, Pending>();
   const stateListeners = new Set<(state: StateDocument) => void>();
   const langListeners = new Set<(lang: Lang) => void>();
@@ -161,16 +176,21 @@ function start(port: MessagePort, ready: (panel: Panel) => void): void {
 
   const send = (method: string, params: unknown): Promise<unknown> =>
     new Promise((resolve, reject) => {
+      if (port === undefined) {
+        reject(new Error("pannello non collegato"));
+        return;
+      }
       const id = next++;
       pending.set(id, { resolve, reject });
       port.postMessage({ type: "call", id, method, params });
     });
 
-  port.onmessage = (event: MessageEvent) => {
+  const onMessage = (event: MessageEvent) => {
     const parsed = HostToPanelSchema.safeParse(event.data);
     if (!parsed.success) return;
     const message = parsed.data;
     if (message.type === "init") {
+      const reconnected = resolved;
       info = {
         pluginId: message.pluginId,
         panelId: message.panelId,
@@ -179,6 +199,13 @@ function start(port: MessagePort, ready: (panel: Panel) => void): void {
         state: message.state,
         context: message.context,
       };
+      // Ricollegato: stessi ascoltatori, stato e testi aggiornati.
+      if (reconnected) {
+        for (const listener of stateListeners) listener(message.state);
+        for (const listener of langListeners) listener(message.lang);
+        return;
+      }
+      resolved = true;
       const current = () => {
         if (info === undefined) throw new Error("pannello non collegato");
         return info;
@@ -241,5 +268,16 @@ function start(port: MessagePort, ready: (panel: Panel) => void): void {
       if (message.type === "result") call.resolve(message.result);
       else call.reject(new PanelCallError(message.error));
     }
+  };
+
+  return {
+    attach: (next) => {
+      // Le chiamate in corso sulla porta vecchia non avranno risposta.
+      for (const call of pending.values()) call.reject(new Error("pannello ricollegato"));
+      pending.clear();
+      port?.close();
+      port = next;
+      port.onmessage = onMessage;
+    },
   };
 }

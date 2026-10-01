@@ -1,4 +1,10 @@
-import { emptyLayers, newId, PANEL_CONNECT, type StateDocument } from "@cuelith/protocol";
+import {
+  emptyLayers,
+  newId,
+  PANEL_CONNECT,
+  PANEL_READY,
+  type StateDocument,
+} from "@cuelith/protocol";
 import { describe, expect, it } from "vitest";
 import { connectPanel, PanelCallError, type ConnectTarget } from "../src/index.js";
 
@@ -32,10 +38,15 @@ function state(name = "Show"): StateDocument {
   };
 }
 
+function emit(target: { listeners: Set<(event: MessageEvent) => void> }, event: MessageEvent) {
+  for (const listener of target.listeners) listener(event);
+}
+
 /** Finta finestra del pannello e finta postazione dall'altra parte della porta. */
 function setup() {
   const listeners = new Set<(event: MessageEvent) => void>();
-  const target: ConnectTarget = {
+  const target: ConnectTarget & { listeners: typeof listeners } = {
+    listeners,
     addEventListener: (_type, listener) => listeners.add(listener),
     removeEventListener: (_type, listener) => listeners.delete(listener),
   };
@@ -101,6 +112,41 @@ describe("@cuelith/panel", () => {
     await expect(panel.call("output.create", {} as never)).rejects.toBeInstanceOf(PanelCallError);
     await panel.notify("cuelith.greetings.hello", { name: "Anna" });
     expect(calls.map((c) => c.method)).toEqual(["cue.next", "output.create", "host.notify"]);
+    close();
+  });
+
+  it("si annuncia pronto e accetta di essere ricollegato con una porta nuova", async () => {
+    const { target, connect, close } = setup();
+    const announced: unknown[] = [];
+    const ready = connectPanel(target, { postMessage: (message) => announced.push(message) });
+    expect(announced).toEqual([{ type: PANEL_READY }]);
+    connect();
+    const panel = await ready;
+    const names: string[] = [];
+    panel.onState((s) => names.push(s.show.name));
+
+    // La postazione ricollega il pannello: vale la porta nuova.
+    const second = new MessageChannel();
+    second.port1.onmessage = (event: MessageEvent<{ id: number }>) => {
+      second.port1.postMessage({ type: "result", id: event.data.id, result: { rev: 99 } });
+    };
+    // Il pannello ascolta ancora: un nuovo "connect" con un'altra porta.
+    const event = new MessageEvent("message", {
+      data: { type: PANEL_CONNECT },
+      ports: [second.port2],
+    });
+    emit(target, event);
+    second.port1.postMessage({
+      type: "init",
+      pluginId: "cuelith.greetings",
+      panelId: "main",
+      lang: "it",
+      catalog: {},
+      state: state("Ricollegato"),
+    });
+    await expect.poll(() => names).toEqual(["Ricollegato"]);
+    await expect(panel.call("cue.next", {})).resolves.toEqual({ rev: 99 });
+    second.port1.close();
     close();
   });
 
