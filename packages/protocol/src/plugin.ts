@@ -3,6 +3,7 @@ import { z } from "zod";
 import { LocalIdSchema, PluginIdSchema, QualifiedTypeSchema, providerOf } from "./ids.js";
 import { LangSchema, MessageKeySchema } from "./locale.js";
 import { areaPanelIds, CORE_PANELS, ModeContributionSchema } from "./mode.js";
+import { DeclaredResourcesSchema } from "./resources.js";
 import { SemverRangeSchema } from "./show.js";
 
 // Manifest di un modulo: cuelith-plugin.json (cap. 24), con le aggiunte
@@ -198,6 +199,11 @@ const ManifestShape = z.strictObject({
   /** Es. ["service:transitions"]. */
   provides: z.array(z.string().regex(/^service:[a-z0-9.-]+$/, "protocol.manifest.serviceInvalid")),
   contributes: ContributesSchema,
+  /**
+   * Consumo stimato di memoria e CPU, a riposo e al massimo (dal protocollo
+   * 1.9): entra nel contatore delle risorse per sapere se il computer reggera'.
+   */
+  resources: DeclaredResourcesSchema.optional(),
   /** Documentazione completa (dal protocollo 1.4): si apre dalla pagina dei moduli. */
   docs: z.strictObject({ url: z.url({ protocol: /^https$/ }) }).optional(),
   /**

@@ -9,6 +9,7 @@ import {
 import { CatalogSchema, LangSchema } from "./locale.js";
 import { PermissionSchema, PluginManifestSchema } from "./plugin.js";
 import { RegistryPluginSchema } from "./registry.js";
+import { ResourceReportSchema } from "./resources.js";
 import { RoleIdSchema, type Scope } from "./roles.js";
 import {
   AttachmentSchema,
@@ -185,6 +186,8 @@ export const EngineMethods = {
     z.strictObject({ rev: z.number().int().nonnegative(), state: StateDocumentSchema }),
   ),
   "display.list": spec("read", Empty, z.strictObject({ displays: z.array(DisplayInfoSchema) })),
+  /** Risorse di piattaforma e moduli attivi rispetto al computer (dal protocollo 1.9). */
+  "system.resources": spec("read", Empty, ResourceReportSchema),
   "locale.list": spec(
     "read",
     Empty,
@@ -624,7 +627,18 @@ export const PluginHostMethods = {
   ),
   "plugin.deactivate": spec("plugin.self", Empty, Empty),
   /** Il motore controlla ogni tanto che il modulo risponda (dal protocollo 1.8). */
-  "plugin.ping": spec("plugin.self", Empty, Empty),
+  /**
+   * Il modulo risponde col suo consumo (dal protocollo 1.9, facoltativo):
+   * memoria del processo e CPU dall'ultimo controllo.
+   */
+  "plugin.ping": spec(
+    "plugin.self",
+    Empty,
+    z.strictObject({
+      memoryMB: z.number().nonnegative().optional(),
+      cpuPercent: z.number().nonnegative().optional(),
+    }),
+  ),
   "command.execute": spec(
     "plugin.self",
     z.strictObject({ command: z.string().min(1), params: Params.optional() }),

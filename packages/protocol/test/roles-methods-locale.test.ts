@@ -16,6 +16,8 @@ import {
   SCOPES,
   translate,
   type EngineMethodName,
+  DeclaredResourcesSchema,
+  summarizeResources,
 } from "../src/index.js";
 
 const allowed = (
@@ -238,5 +240,60 @@ describe("timer e messaggi al palco (protocollo 1.7)", () => {
     ] as const) {
       expect(EngineMethods[name].scope).toBe("cue");
     }
+  });
+});
+
+describe("risorse (protocollo 1.9)", () => {
+  const system = { cpuModel: "x", cpuCores: 4, memoryTotalMB: 8000, memoryFreeMB: 4000 };
+  const usage = (memoryMB: number, cpuPercent: number) => ({ memoryMB, cpuPercent });
+
+  it("somma riposo, adesso e massimo; il massimo e' il piu' alto tra dichiarato e osservato", () => {
+    const summary = summarizeResources(
+      [
+        {
+          id: "core.engine",
+          kind: "engine",
+          current: usage(300, 5),
+          low: usage(250, 1),
+          peak: usage(400, 30),
+        },
+        {
+          id: "cuelith.ndi",
+          kind: "module",
+          current: usage(100, 10),
+          peak: usage(900, 90),
+          declared: { memoryMB: { idle: 80, peak: 500 }, cpuPercent: { idle: 5, peak: 120 } },
+        },
+      ],
+      system,
+      [],
+    );
+    expect(summary.totals).toEqual({
+      min: usage(330, 6),
+      current: usage(400, 15),
+      max: usage(1300, 150),
+    });
+    expect(summary.level).toBe("ok");
+  });
+
+  it("semaforo: giallo vicino al limite, rosso oltre o con fotogrammi in ritardo", () => {
+    const heavy = [{ id: "m", kind: "module" as const, current: usage(6000, 50) }];
+    expect(summarizeResources(heavy, system, []).level).toBe("warning");
+    const full = [{ id: "m", kind: "module" as const, current: usage(7500, 50) }];
+    expect(summarizeResources(full, system, [])).toMatchObject({
+      level: "danger",
+      reasons: ["core.resources.reason.memoryMax"],
+    });
+    const late = summarizeResources([], system, [{ outputId: "o", fps: 40, lateFrames: 5 }]);
+    expect(late).toMatchObject({ level: "danger", reasons: ["core.resources.reason.lateFrames"] });
+  });
+
+  it("i moduli dichiarano riposo <= massimo", () => {
+    expect(
+      DeclaredResourcesSchema.safeParse({
+        memoryMB: { idle: 500, peak: 100 },
+        cpuPercent: { idle: 1, peak: 2 },
+      }).success,
+    ).toBe(false);
   });
 });

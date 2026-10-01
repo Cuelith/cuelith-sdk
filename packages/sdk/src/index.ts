@@ -258,6 +258,22 @@ export function runPlugin(
     },
   });
 
+  // Consumo del processo per il contatore delle risorse: memoria e CPU
+  // (percentuale di un core) dall'ultimo controllo del motore.
+  let lastCpu = process.cpuUsage();
+  let lastAt = performance.now();
+  const usage = () => {
+    const now = performance.now();
+    const cpu = process.cpuUsage(lastCpu);
+    const elapsedMs = Math.max(1, now - lastAt);
+    lastCpu = process.cpuUsage();
+    lastAt = now;
+    return {
+      memoryMB: Math.round(process.memoryUsage.rss() / (1024 * 1024)),
+      cpuPercent: Math.round(((cpu.user + cpu.system) / 1000 / elapsedMs) * 1000) / 10,
+    };
+  };
+
   const reply = (id: RpcId, result: unknown) => {
     send({ id, result });
   };
@@ -271,7 +287,7 @@ export function runPlugin(
     const p = asRecord(params);
     switch (method) {
       case "plugin.ping":
-        reply(id, {});
+        reply(id, usage());
         return;
       case "plugin.activate": {
         const raw = asRecord(p.context);

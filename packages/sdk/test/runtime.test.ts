@@ -96,7 +96,10 @@ describe("runPlugin", () => {
       error: { code: 4220, message: "cuelith.hello.error.name", data: { params: { name: "x" } } },
     });
     await engine.deliver({ id: 4, method: "plugin.ping", params: {} });
-    expect(engine.response(4)).toMatchObject({ result: {} });
+    // Risponde col consumo del processo (contatore delle risorse).
+    const ping = engine.response(4) as { result: { memoryMB: number; cpuPercent: number } };
+    expect(ping.result.memoryMB).toBeGreaterThan(0);
+    expect(ping.result.cpuPercent).toBeGreaterThanOrEqual(0);
   });
 
   it("rifiuta un motore con un protocollo di versione maggiore diversa", async () => {

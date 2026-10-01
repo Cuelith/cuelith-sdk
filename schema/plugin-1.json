@@ -528,6 +528,56 @@
       },
       "additionalProperties": false
     },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "memoryMB": {
+          "type": "object",
+          "properties": {
+            "idle": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 65536
+            },
+            "peak": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 65536
+            }
+          },
+          "required": [
+            "idle",
+            "peak"
+          ],
+          "additionalProperties": false
+        },
+        "cpuPercent": {
+          "type": "object",
+          "properties": {
+            "idle": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 6400
+            },
+            "peak": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 6400
+            }
+          },
+          "required": [
+            "idle",
+            "peak"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "memoryMB",
+        "cpuPercent"
+      ],
+      "additionalProperties": false
+    },
     "docs": {
       "type": "object",
       "properties": {
