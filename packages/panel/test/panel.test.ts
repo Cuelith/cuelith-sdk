@@ -159,3 +159,48 @@ describe("@cuelith/panel", () => {
     close();
   });
 });
+
+describe("compatibilita' in avanti", () => {
+  it("un motore piu' nuovo manda campi che il pannello non conosce: il pannello parte lo stesso", async () => {
+    const { target, close } = setup();
+    const ready = connectPanel(target);
+    const channel = new MessageChannel();
+    emit(
+      target,
+      new MessageEvent("message", { data: { type: PANEL_CONNECT }, ports: [channel.port2] }),
+    );
+    // Stato di un motore futuro: campi in piu' a ogni livello, e un messaggio in piu'.
+    const future = state("Dal futuro") as unknown as Record<string, Record<string, unknown>>;
+    const doc = {
+      ...future,
+      live: { ...future.live, network: { enabled: true, urls: [] }, qualcosaDiNuovo: 1 },
+      show: { ...future.show, nuovoCampo: { a: 1 } },
+      altro: true,
+    };
+    channel.port1.postMessage({
+      type: "init",
+      pluginId: "cuelith.greetings",
+      panelId: "main",
+      lang: "it",
+      catalog: { "cuelith.greetings.hello": "Ciao {name}" },
+      state: doc,
+      campoNuovo: "ignorato",
+    });
+    const panel = await ready;
+    expect(panel.state.show.name).toBe("Dal futuro");
+    expect(panel.t("cuelith.greetings.hello", { name: "Anna" })).toBe("Ciao Anna");
+
+    // Anche gli aggiornamenti di stato con campi nuovi arrivano.
+    const names: string[] = [];
+    panel.onState((s) => names.push(s.show.name));
+    channel.port1.postMessage({
+      type: "state",
+      state: { ...doc, show: { ...doc.show, name: "Poi" } },
+    });
+    // Un tipo di messaggio sconosciuto si ignora senza rompere nulla.
+    channel.port1.postMessage({ type: "novita", dati: 1 });
+    await expect.poll(() => names).toEqual(["Poi"]);
+    channel.port1.close();
+    close();
+  });
+});

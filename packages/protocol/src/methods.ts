@@ -18,6 +18,7 @@ import {
   CreditsSchema,
   ItemSchema,
   MediaInfoSchema,
+  MediaKindSchema,
   TagSchema,
   FeedSchema,
   FieldSchema,
@@ -550,6 +551,15 @@ export const EngineMethods = {
   "library.removeEntry": spec("library", z.strictObject({ entryId: IdSchema }), Rev),
   "library.moveEntry": spec("library", z.strictObject({ entryId: IdSchema, toIndex: Index }), Rev),
   /** Copia nell'archivio un file del computer del motore (basi musicali, immagini). */
+  /**
+   * File dell'archivio media di un tipo, dal piu' recente (dal protocollo
+   * 1.12): per scegliere uno sfondo tra le immagini gia' caricate.
+   */
+  "media.list": spec(
+    "read",
+    z.strictObject({ kind: MediaKindSchema }),
+    z.strictObject({ media: z.array(MediaInfoSchema) }),
+  ),
   "media.import": spec(
     "library",
     z.strictObject({ path: z.string().min(1) }),

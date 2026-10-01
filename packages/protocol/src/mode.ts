@@ -181,5 +181,8 @@ export const CORE_PANELS = [
   "core.notes",
   /** Comandi tra anteprima e programma: TAKE, avanti, indietro, nero. */
   "core.transitions",
+  // Dal protocollo 1.12:
+  /** Sfondi dei testi: miniature delle immagini dell'archivio, velo (decisione 0003). */
+  "core.backgrounds",
 ] as const;
 export type CorePanelId = (typeof CORE_PANELS)[number];

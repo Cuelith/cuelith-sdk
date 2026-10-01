@@ -1,6 +1,5 @@
 import {
   CUE_KEYS,
-  HostToPanelSchema,
   PANEL_CONNECT,
   PANEL_READY,
   PANEL_HOST_METHODS,
@@ -9,6 +8,7 @@ import {
   type EngineMethodName,
   type EngineMethodParams,
   type EngineMethodResult,
+  type HostToPanel,
   type Lang,
   type MessageParams,
   type StateDocument,
@@ -103,6 +103,42 @@ export function connectPanel(
   });
 }
 
+/**
+ * Messaggio della postazione. Si controlla solo la forma che serve qui, MAI
+ * tutto lo stato: una postazione piu' nuova puo' mandare campi che questa
+ * versione della libreria non conosce (protocollo piu' recente), e il
+ * pannello deve partire lo stesso. I campi sconosciuti si ignorano.
+ */
+function hostMessage(data: unknown): HostToPanel | undefined {
+  if (typeof data !== "object" || data === null) return undefined;
+  const message = data as Record<string, unknown>;
+  const isObject = (value: unknown) => typeof value === "object" && value !== null;
+  switch (message.type) {
+    case "init":
+      return typeof message.pluginId === "string" &&
+        typeof message.panelId === "string" &&
+        typeof message.lang === "string" &&
+        isObject(message.catalog) &&
+        isObject(message.state)
+        ? (message as HostToPanel)
+        : undefined;
+    case "state":
+      return isObject(message.state) ? (message as HostToPanel) : undefined;
+    case "catalog":
+      return typeof message.lang === "string" && isObject(message.catalog)
+        ? (message as HostToPanel)
+        : undefined;
+    case "result":
+      return typeof message.id === "number" ? (message as HostToPanel) : undefined;
+    case "error":
+      return typeof message.id === "number" && isObject(message.error)
+        ? (message as HostToPanel)
+        : undefined;
+    default:
+      return undefined;
+  }
+}
+
 const CUE_KEY_SET: ReadonlySet<string> = new Set(CUE_KEYS);
 
 /**
@@ -186,9 +222,8 @@ function createConnection(ready: (panel: Panel) => void): { attach(port: Message
     });
 
   const onMessage = (event: MessageEvent) => {
-    const parsed = HostToPanelSchema.safeParse(event.data);
-    if (!parsed.success) return;
-    const message = parsed.data;
+    const message = hostMessage(event.data);
+    if (message === undefined) return;
     if (message.type === "init") {
       const reconnected = resolved;
       info = {
