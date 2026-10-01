@@ -107,8 +107,36 @@ export const ClientInfoSchema = z.strictObject({
   /** Vero per la postazione sullo stesso computer del motore. */
   local: z.boolean(),
   connectedAt: z.iso.datetime(),
+  /** Postazione abbinata in rete (dal protocollo 1.10): il suo id stabile, per revocarla. */
+  pairedId: z.string().min(1).optional(),
 });
 export type ClientInfo = z.infer<typeof ClientInfoSchema>;
+
+/**
+ * Postazioni in rete locale (cap. 9 e 27, dal protocollo 1.10). Il motore
+ * ascolta in rete solo se l'utente lo chiede, e solo sull'indirizzo scelto.
+ */
+export const NetworkStateSchema = z.strictObject({
+  enabled: z.boolean(),
+  /** Indirizzo IPv4 su cui il motore ascolta. */
+  address: z.string().optional(),
+  port: z.number().int().positive().optional(),
+  /** Indirizzi da aprire nel browser delle altre postazioni. */
+  urls: z.array(z.string()),
+  /** Chiave di traduzione se l'ascolto non e' partito (porta occupata, rete sparita). */
+  error: z.string().optional(),
+});
+export type NetworkState = z.infer<typeof NetworkStateSchema>;
+
+/** Postazione abbinata: resta finche' non la si revoca. Il token non esce mai dal motore. */
+export const PairedStationSchema = z.strictObject({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  role: RoleIdSchema,
+  createdAt: z.iso.datetime(),
+  lastSeenAt: z.iso.datetime().optional(),
+});
+export type PairedStation = z.infer<typeof PairedStationSchema>;
 
 /** Ciclo di vita di un modulo nel motore (cap. 24). */
 export const PLUGIN_STATES = [
@@ -173,6 +201,8 @@ export const LiveStateSchema = z.strictObject({
   recovery: z
     .strictObject({ path: z.string().min(1), showName: z.string(), savedAt: z.iso.datetime() })
     .optional(),
+  /** Postazioni in rete locale (dal protocollo 1.10); assente = solo questo computer. */
+  network: NetworkStateSchema.optional(),
 });
 export type LiveState = z.infer<typeof LiveStateSchema>;
 

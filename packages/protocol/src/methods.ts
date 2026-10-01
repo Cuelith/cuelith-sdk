@@ -3,6 +3,7 @@ import { IdSchema, PluginIdSchema, ProviderSchema, QualifiedTypeSchema } from ".
 import {
   ClientKindSchema,
   DisplayInfoSchema,
+  PairedStationSchema,
   PluginStatusSchema,
   StateDocumentSchema,
 } from "./live.js";
@@ -177,7 +178,25 @@ export const EngineMethods = {
     z.strictObject({ role: RoleIdSchema }),
     z.strictObject({ code: z.string().regex(/^\d{6}$/), expiresAt: z.iso.datetime() }),
   ),
+  "pairing.cancel": spec("admin", Empty, Empty),
+  /** Postazioni abbinate, anche se ora scollegate (dal protocollo 1.10). */
+  "pairing.list": spec("admin", Empty, z.strictObject({ stations: z.array(PairedStationSchema) })),
+  /** Revoca una postazione abbinata (clientId = il suo id stabile) e la scollega. */
   "session.revoke": spec("admin", z.strictObject({ clientId: z.string().min(1) }), Empty),
+  /** Indirizzi di rete del computer del motore, tra cui scegliere (dal protocollo 1.10). */
+  "network.interfaces": spec(
+    "admin",
+    Empty,
+    z.strictObject({
+      interfaces: z.array(z.strictObject({ name: z.string(), address: z.string() })),
+    }),
+  ),
+  /** Apre o chiude l'ascolto in rete locale; senza indirizzo, il primo disponibile. */
+  "network.set": spec(
+    "admin",
+    z.strictObject({ enabled: z.boolean(), address: z.string().min(1).optional() }),
+    Empty,
+  ),
 
   // ---- lettura ----
   "state.subscribe": spec(
@@ -188,8 +207,10 @@ export const EngineMethods = {
   "display.list": spec("read", Empty, z.strictObject({ displays: z.array(DisplayInfoSchema) })),
   /** Risorse di piattaforma e moduli attivi rispetto al computer (dal protocollo 1.9). */
   "system.resources": spec("read", Empty, ResourceReportSchema),
+  // Lingue e testi sono leggibili anche prima dell'accesso (dal protocollo
+  // 1.10): servono alla schermata di abbinamento di una postazione nuova.
   "locale.list": spec(
-    "read",
+    "session",
     Empty,
     z.strictObject({
       langs: z.array(z.strictObject({ lang: LangSchema, name: z.string() })),
@@ -197,7 +218,7 @@ export const EngineMethods = {
     }),
   ),
   "locale.catalog": spec(
-    "read",
+    "session",
     z.strictObject({ lang: LangSchema }),
     z.strictObject({ catalog: CatalogSchema }),
   ),
