@@ -7,7 +7,7 @@ import {
   StateDocumentSchema,
 } from "./live.js";
 import { CatalogSchema, LangSchema } from "./locale.js";
-import { PluginManifestSchema } from "./plugin.js";
+import { PermissionSchema, PluginManifestSchema } from "./plugin.js";
 import { RegistryPluginSchema } from "./registry.js";
 import { RoleIdSchema, type Scope } from "./roles.js";
 import {
@@ -595,7 +595,12 @@ export function isEngineMethod(name: string): name is EngineMethodName {
   return Object.hasOwn(EngineMethods, name);
 }
 
-/** Richieste che il motore fa al processo di un modulo. */
+/**
+ * Richieste che il motore fa al processo di un modulo (righe JSON su stdio,
+ * cap. 21 e 24). Il modulo risponde entro 5 secondi, altrimenti e'
+ * considerato bloccato: il motore lo termina e lo riavvia (al massimo 3 volte
+ * in 60 secondi).
+ */
 export const PluginHostMethods = {
   "plugin.activate": spec(
     "plugin.self",
@@ -606,11 +611,20 @@ export const PluginHostMethods = {
         protocol: z.string(),
         lang: LangSchema,
         settings: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+        /** Permessi approvati dall'utente (dal protocollo 1.8). */
+        permissions: z.array(PermissionSchema),
+        /**
+         * Cartella privata del modulo, sempre leggibile e scrivibile (dal
+         * protocollo 1.8): file grandi, cache. Sopravvive agli aggiornamenti.
+         */
+        dataDir: z.string().min(1),
       }),
     }),
     Empty,
   ),
   "plugin.deactivate": spec("plugin.self", Empty, Empty),
+  /** Il motore controlla ogni tanto che il modulo risponda (dal protocollo 1.8). */
+  "plugin.ping": spec("plugin.self", Empty, Empty),
   "command.execute": spec(
     "plugin.self",
     z.strictObject({ command: z.string().min(1), params: Params.optional() }),

@@ -7,6 +7,9 @@ import {
   TimerSchema,
   CursorSchema,
   EngineMethods,
+  hasFullAccess,
+  networkAllowance,
+  panelAllows,
   pluginRole,
   PluginHostMethods,
   roleAllows,
@@ -103,6 +106,54 @@ describe("ruoli", () => {
     expect(roleAllows(role, "preview.set", EngineMethods["preview.set"].scope)).toBe(true);
     expect(roleAllows(role, "plugin.install", EngineMethods["plugin.install"].scope)).toBe(false);
     expect(roleAllows(role, "output.blackout", EngineMethods["output.blackout"].scope)).toBe(false);
+  });
+});
+
+describe("processi e pannelli dei moduli (protocollo 1.8)", () => {
+  const scope = (name: EngineMethodName) => EngineMethods[name].scope;
+
+  it("un pannello chiama i comandi del suo modulo, non quelli degli altri", () => {
+    const own = { pluginId: "cuelith.bible", command: "goto" };
+    expect(panelAllows("cuelith.bible", "plugin.command", scope("plugin.command"), own)).toBe(true);
+    expect(panelAllows("cuelith.songs", "plugin.command", scope("plugin.command"), own)).toBe(
+      false,
+    );
+    expect(panelAllows("cuelith.bible", "plugin.command", scope("plugin.command"), null)).toBe(
+      false,
+    );
+  });
+
+  it("i metodi riservati al processo non arrivano dai pannelli", () => {
+    expect(panelAllows("cuelith.bible", "storage.set", scope("storage.set"), {})).toBe(false);
+    expect(panelAllows("cuelith.bible", "cue.send", scope("cue.send"), {})).toBe(true);
+    expect(panelAllows("cuelith.bible", "plugin.install", scope("plugin.install"), {})).toBe(false);
+  });
+
+  it("il motore chiede al modulo se risponde e gli passa permessi e cartella privata", () => {
+    expect(PluginHostMethods["plugin.ping"].params.safeParse({}).success).toBe(true);
+    const context = {
+      pluginId: "cuelith.bible",
+      version: "1.0.0",
+      protocol: "1.8.0",
+      lang: "it",
+      settings: {},
+      permissions: ["storage"],
+      dataDir: "C:\\dati\\cuelith.bible",
+    };
+    expect(PluginHostMethods["plugin.activate"].params.safeParse({ context }).success).toBe(true);
+    const { dataDir: _missing, ...partial } = context;
+    expect(
+      PluginHostMethods["plugin.activate"].params.safeParse({ context: partial }).success,
+    ).toBe(false);
+  });
+
+  it("rete consentita e accesso completo dai permessi", () => {
+    expect(networkAllowance(["storage"])).toEqual([]);
+    expect(networkAllowance(["network:api.example.org"])).toEqual(["api.example.org"]);
+    expect(networkAllowance(["network:api.example.org", "network"])).toBe("*");
+    expect(hasFullAccess(["storage", "network"])).toBe(false);
+    expect(hasFullAccess(["process"])).toBe(true);
+    expect(hasFullAccess(["native"])).toBe(true);
   });
 });
 

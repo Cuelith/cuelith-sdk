@@ -23,6 +23,28 @@ describe("PluginManifestSchema", () => {
     expect(messages(italianManifest())).toEqual([]);
   });
 
+  it("un programma nativo deve dichiararsi con il permesso native (protocollo 1.8)", () => {
+    const native: PluginManifest = {
+      ...bibleManifest(),
+      runtime: { type: "native", bin: { "win-x64": "bin/ndi.exe" } },
+    };
+    expect(messages(native)).toContain("protocol.manifest.nativePermission");
+    expect(messages({ ...native, permissions: [...native.permissions, "native"] })).toEqual([]);
+    expect(messages({ ...bibleManifest(), permissions: ["native"] })).toContain(
+      "protocol.manifest.nativePermission",
+    );
+    expect(
+      messages({ ...native, permissions: ["native"], runtime: { type: "native", bin: {} } }),
+    ).toContain("protocol.manifest.nativeNoBinary");
+  });
+
+  it("accetta i permessi per altri programmi e addon, rifiuta i doppioni", () => {
+    expect(messages({ ...bibleManifest(), permissions: ["process", "addons"] })).toEqual([]);
+    expect(messages({ ...bibleManifest(), permissions: ["storage", "storage"] })).toContain(
+      "protocol.manifest.duplicatePermission",
+    );
+  });
+
   it("rifiuta una lingua con un processo", () => {
     const m: PluginManifest = { ...italianManifest(), runtime: { type: "node", entry: "main.js" } };
     expect(messages(m)).toContain("protocol.manifest.localeNeedsNoRuntime");

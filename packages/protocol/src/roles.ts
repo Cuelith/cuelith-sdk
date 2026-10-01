@@ -76,16 +76,40 @@ export const BUILTIN_ROLES = {
 
 export type BuiltinRoleId = keyof typeof BUILTIN_ROLES;
 
-/** Ruolo assegnato al processo di un modulo: "plugin:<id del modulo>". */
+/**
+ * Ruolo assegnato al processo di un modulo: "plugin:<id del modulo>". Dal
+ * protocollo 1.8 comprende plugin.command: il motore lascia chiamare solo i
+ * comandi del modulo stesso e dei moduli da cui dipende.
+ */
 export function pluginRole(pluginId: string): Role {
   return {
     id: `plugin:${pluginId}`,
     titleKey: "core.role.plugin",
-    scopes: ["session", "read", "cue", "edit", "library", "plugin.self"],
+    scopes: ["session", "read", "cue", "edit", "library", "plugin.command", "plugin.self"],
     methods: [],
   };
 }
 
 export function roleAllows(role: Role, method: string, scope: Scope): boolean {
   return role.scopes.includes(scope) || role.methods.includes(method);
+}
+
+/**
+ * Cosa puo' chiedere al motore il pannello di un modulo (attraverso la
+ * postazione, dal protocollo 1.8): come il processo del modulo, tranne i
+ * metodi riservati al processo (storage, eventi), e i comandi solo del
+ * proprio modulo.
+ */
+export function panelAllows(
+  pluginId: string,
+  method: string,
+  scope: Scope,
+  params: unknown,
+): boolean {
+  if (scope === "plugin.self") return false;
+  if (scope === "plugin.command") {
+    const target = (params as { pluginId?: unknown } | null | undefined)?.pluginId;
+    return target === pluginId;
+  }
+  return roleAllows(pluginRole(pluginId), method, scope);
 }

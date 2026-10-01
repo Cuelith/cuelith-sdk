@@ -53,16 +53,42 @@ export type Runtime = z.infer<typeof RuntimeSchema>;
 
 /**
  * storage | network | network:<host> | fs:read | fs:write | devices:video |
- * devices:audio | devices:midi | serial. Mostrati all'utente prima di
- * installare; nuovi permessi in un aggiornamento chiedono nuova approvazione.
+ * devices:audio | devices:midi | serial | process | addons | native. Mostrati
+ * all'utente prima di installare; nuovi permessi in un aggiornamento chiedono
+ * nuova approvazione.
+ *
+ * Dal protocollo 1.8 (processi dei moduli, decisione 0007):
+ * - process: avviare altri programmi (es. FFmpeg per camere e dirette);
+ * - addons: caricare codice nativo dentro il processo Node del modulo;
+ * - native: il modulo e' un programma nativo (runtime "native"), obbligatorio
+ *   per quei moduli.
+ * Questi tre, fs:read e fs:write danno al modulo accesso completo al
+ * computer: l'interfaccia lo dice chiaramente prima di installare.
  */
 export const PermissionSchema = z
   .string()
   .regex(
-    /^(?:storage|network|network:[a-z0-9-]+(?:\.[a-z0-9-]+)+|fs:read|fs:write|devices:video|devices:audio|devices:midi|serial)$/,
+    /^(?:storage|network|network:[a-z0-9-]+(?:\.[a-z0-9-]+)+|fs:read|fs:write|devices:video|devices:audio|devices:midi|serial|process|addons|native)$/,
     "protocol.manifest.permissionInvalid",
   );
 export type Permission = z.infer<typeof PermissionSchema>;
+
+/** Permessi con cui un modulo esce dal recinto (vedi PermissionSchema). */
+export const FULL_ACCESS_PERMISSIONS = ["fs:read", "fs:write", "process", "addons", "native"];
+
+/** Vero se i permessi danno accesso completo al computer. */
+export function hasFullAccess(permissions: readonly string[]): boolean {
+  return permissions.some((p) => FULL_ACCESS_PERMISSIONS.includes(p));
+}
+
+/**
+ * Host di rete consentiti a un modulo: "*" con il permesso network, l'elenco
+ * degli host con network:<host> (sottodomini compresi), vuoto senza rete.
+ */
+export function networkAllowance(permissions: readonly string[]): "*" | string[] {
+  if (permissions.includes("network")) return "*";
+  return permissions.filter((p) => p.startsWith("network:")).map((p) => p.slice(8));
+}
 
 const Titled = z.strictObject({ id: LocalIdSchema, title: MessageKeySchema });
 
@@ -246,6 +272,15 @@ export const PluginManifestSchema = ManifestShape.superRefine((m, ctx) => {
   c.settings?.forEach((s, i) => {
     ownKey(s.title, ["contributes", "settings", i, "title"]);
   });
+
+  // Un programma nativo non si puo' chiudere in un recinto: lo deve dire.
+  const isNative = m.runtime.type === "native";
+  if (isNative !== m.permissions.includes("native"))
+    issue("protocol.manifest.nativePermission", ["permissions"]);
+  if (m.runtime.type === "native" && Object.keys(m.runtime.bin).length === 0)
+    issue("protocol.manifest.nativeNoBinary", ["runtime", "bin"]);
+  if (new Set(m.permissions).size !== m.permissions.length)
+    issue("protocol.manifest.duplicatePermission", ["permissions"]);
 
   const hasCode = m.runtime.type !== "none";
   if (!hasCode && (c.commands?.length ?? 0) > 0)

@@ -6,8 +6,10 @@ Protocollo, tipi, SDK e strumenti per costruire moduli di [Cuelith](https://gith
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `@cuelith/protocol` | Modello dati dello show, stato live, manifest dei moduli, layout delle modalità, metodi JSON-RPC e codici d'errore                  |
 | `@cuelith/ui`       | Colori, font (inclusi, funzionano offline) e classi di base comuni a postazione e pannelli dei moduli: `@cuelith/ui/cuelith-ui.css` |
+| `@cuelith/panel`    | Per i pannelli dei moduli (iframe isolati): collegamento alla postazione, testi tradotti, stato dello show, comandi                 |
+| `@cuelith/sdk`      | Per i moduli con codice (processo separato): `definePlugin`, comandi, eventi, stato dello show, spazio dati, log                    |
 
-In arrivo: `@cuelith/sdk` (`definePlugin`, contesto del modulo), `@cuelith/cli` (`cuelith-plugin new | dev | pack`).
+In arrivo: `@cuelith/cli` (`cuelith-plugin new | dev | pack`). Un modulo d'esempio completo, da copiare per iniziare, è [`plugin-template`](https://github.com/Cuelith/plugin-template).
 
 Gli schemi JSON pubblici sono in [`schema/`](schema): `show-1.json` (file `.cuelith`), `plugin-1.json` (`cuelith-plugin.json`), `layout-1.json` (modalità).
 
