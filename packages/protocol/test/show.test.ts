@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { mediaIdOf, mediaUri, newId, ShowSchema, slideSequence, type Show } from "../src/index.js";
+import {
+  mediaIdOf,
+  mediaUri,
+  mediaUrl,
+  newId,
+  ShowSchema,
+  slideBackground,
+  slideSequence,
+  type Show,
+} from "../src/index.js";
 import { makeShow } from "./fixtures.js";
 
 function messages(show: unknown): string[] {
@@ -178,5 +187,32 @@ describe("crediti, tag e allegati (protocollo 1.2)", () => {
     expect(mediaIdOf("media:../../segreto.png")).toBeUndefined();
     // Il punto prima dell'estensione e' letterale: niente separatori di percorso.
     expect(mediaIdOf(`media:${"c".repeat(64)}/png`)).toBeUndefined();
+  });
+});
+
+describe("sfondi (protocollo 1.11, decisione 0003)", () => {
+  const id = `${"a".repeat(64)}.jpg`;
+  const image = { uri: mediaUri(id), kind: "image" as const };
+  const other = { uri: mediaUri(`${"b".repeat(64)}.png`), kind: "image" as const };
+
+  it("lo sfondo della slide vince su quello dell'elemento", () => {
+    expect(slideBackground({ background: image }, { background: other })).toEqual(other);
+    expect(slideBackground({ background: image }, {})).toEqual(image);
+    expect(slideBackground({}, {})).toBeUndefined();
+    // Solo immagini: un audio o un video non e' uno sfondo (i video arrivano in Fase 1).
+    expect(slideBackground({ background: { uri: image.uri, kind: "video" } }, {})).toBeUndefined();
+  });
+
+  it("un elemento puo' avere uno sfondo e lo show resta valido", () => {
+    const show = makeShow();
+    const item = Object.values(show.items)[0];
+    if (item === undefined) throw new Error("fixture senza elementi");
+    item.background = image;
+    expect(ShowSchema.safeParse(show).success).toBe(true);
+  });
+
+  it("l'indirizzo di un file dell'archivio", () => {
+    expect(mediaUrl(image.uri)).toBe(`/media/${id}`);
+    expect(mediaUrl("https://example.com/x.jpg")).toBeUndefined();
   });
 });

@@ -59,6 +59,12 @@ export function mediaIdOf(uri: string): MediaId | undefined {
   return id.success ? id.data : undefined;
 }
 
+/** Indirizzo da cui il motore serve un file dell'archivio (stessa origine delle pagine). */
+export function mediaUrl(uri: string): string | undefined {
+  const id = mediaIdOf(uri);
+  return id === undefined ? undefined : `/media/${id}`;
+}
+
 export const MediaInfoSchema = z.strictObject({
   id: MediaIdSchema,
   /** Nome originale del file, per mostrarlo all'operatore. */
@@ -131,6 +137,11 @@ export const ItemSchema = z.strictObject({
   slides: z.array(SlideSchema),
   /** Ordine dei gruppi, es. ["S1","RIT","S2","RIT"]. */
   arrangement: z.array(z.string().min(1)).optional(),
+  /**
+   * Sfondo di tutto l'elemento (dal protocollo 1.11, decisione 0003): vale
+   * per ogni slide che non ha uno sfondo suo.
+   */
+  background: MediaRefSchema.optional(),
   meta: Params,
   credits: CreditsSchema.optional(),
   tags: z.array(TagSchema).optional(),
@@ -151,6 +162,18 @@ export type Item = z.infer<typeof ItemSchema>;
 export function slideSequence(item: Pick<Item, "slides" | "arrangement">): Slide[] {
   if (item.arrangement === undefined) return item.slides;
   return item.arrangement.flatMap((group) => item.slides.filter((s) => s.group === group));
+}
+
+/**
+ * Sfondo di una slide (decisione 0003): il suo, altrimenti quello
+ * dell'elemento. Quello predefinito del look lo aggiunge chi disegna.
+ */
+export function slideBackground(
+  item: Pick<Item, "background"> | undefined,
+  slide: Pick<Slide, "background"> | undefined,
+): MediaRef | undefined {
+  const background = slide?.background ?? item?.background;
+  return background?.kind === "image" ? background : undefined;
 }
 
 export const AudienceSchema = z.enum(["all", "room", "stream"]);

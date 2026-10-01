@@ -216,6 +216,28 @@
               "minLength": 1
             }
           },
+          "background": {
+            "type": "object",
+            "properties": {
+              "uri": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video",
+                  "audio"
+                ]
+              }
+            },
+            "required": [
+              "uri",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
           "meta": {
             "type": "object",
             "propertyNames": {

@@ -330,6 +330,7 @@ export const EngineMethods = {
       type: QualifiedTypeSchema,
       title: z.string(),
       slides: z.array(SlideInputSchema).optional(),
+      background: MediaRefSchema.optional(),
       meta: Params.optional(),
       credits: CreditsSchema.optional(),
       tags: z.array(TagSchema).optional(),
@@ -343,6 +344,8 @@ export const EngineMethods = {
       id: IdSchema,
       title: z.string().optional(),
       arrangement: z.array(z.string().min(1)).nullable().optional(),
+      /** Sfondo dell'elemento (dal protocollo 1.11); null lo toglie. */
+      background: MediaRefSchema.nullable().optional(),
       meta: Params.optional(),
       credits: CreditsSchema.nullable().optional(),
       tags: z.array(TagSchema).optional(),
