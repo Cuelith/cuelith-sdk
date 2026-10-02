@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { IdSchema, PluginIdSchema } from "./ids.js";
+import { LangSchema } from "./locale.js";
 import { RoleIdSchema } from "./roles.js";
 import { FeedSchema, ItemSchema, LAYER_IDS, ShowSchema, type Item } from "./show.js";
 
@@ -203,6 +204,11 @@ export const LiveStateSchema = z.strictObject({
     .optional(),
   /** Postazioni in rete locale (dal protocollo 1.10); assente = solo questo computer. */
   network: NetworkStateSchema.optional(),
+  /**
+   * Lingua dell'interfaccia in uso (dal protocollo 1.13): quando cambia, le
+   * postazioni rileggono i testi.
+   */
+  lang: LangSchema.optional(),
 });
 export type LiveState = z.infer<typeof LiveStateSchema>;
 

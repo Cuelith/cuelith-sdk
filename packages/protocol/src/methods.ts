@@ -223,6 +223,15 @@ export const EngineMethods = {
     z.strictObject({ lang: LangSchema }),
     z.strictObject({ catalog: CatalogSchema }),
   ),
+  /**
+   * Sceglie la lingua dell'interfaccia tra quelle installate (dal protocollo
+   * 1.13). Vale per tutte le postazioni: la lingua in uso arriva in `live.lang`.
+   */
+  "locale.set": spec(
+    "admin",
+    z.strictObject({ lang: LangSchema }),
+    z.strictObject({ active: LangSchema }),
+  ),
   "plugin.list": spec("read", Empty, z.strictObject({ plugins: z.array(InstalledPluginSchema) })),
 
   // ---- regia della presentazione ----
