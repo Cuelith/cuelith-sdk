@@ -6,6 +6,7 @@ Protocollo, tipi, SDK, componenti UI e strumenti per i moduli di Cuelith.
 
 ## Regole di questo repo
 
+- **Registry dei plugin a pagamento** (decisione 0013, protocollo 1.14): `RegistryPluginSchema` ha `access`, `price`, `checkoutUrl` (solo `lemonsqueezy.com`, https, senza `utente@`), `licensing` (fornitore ammesso, `storeId`, `productId`) e `authorKey`; con `authorKey` ogni versione ha `signature` (Ed25519 su `packageSignatureMessage`). I campi sono tutti opzionali: una voce vecchia resta valida. `LICENSE_MAX_DEVICES = 3`. Dopo ogni cambio: `pnpm build`, `pnpm schema` e controllare il nucleo con `turbo ... --force`.
 - **Licenza Apache 2.0, di proposito** (decisione 0012): i plugin incorporano l'SDK e devono poterlo fare con qualsiasi licenza, anche chiusa. Mai copiare qui codice di `cuelith-core` (GPL) né aggiungere dipendenze con licenza copyleft.
 - `@cuelith/protocol` è l'unico contratto tra motore, postazioni e moduli. Ogni metodo, tipo o evento si dichiara qui una volta sola (`src/methods.ts`, `src/show.ts`, ...). Una modifica al protocollo aggiorna insieme: tipi qui, motore e postazione in `cuelith-core`, documentazione in `cuelith-docs`, numero di versione (`PROTOCOL_VERSION`, SemVer).
 - `@cuelith/sdk` gira nel processo dei moduli (Node, con i permessi di Node attivi): niente dipendenze oltre a `@cuelith/protocol`, stdout riservato al protocollo (console va nel log del motore).
