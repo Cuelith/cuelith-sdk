@@ -9,5 +9,6 @@ export * from "./rpc.js";
 export * from "./methods.js";
 export * from "./patch.js";
 export * from "./registry.js";
+export * from "./license.js";
 export * from "./panel.js";
 export * from "./resources.js";

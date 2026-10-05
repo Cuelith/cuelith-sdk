@@ -7,6 +7,7 @@ import {
   PluginStatusSchema,
   StateDocumentSchema,
 } from "./live.js";
+import { LicenseProofSchema, LicenseStatusSchema } from "./license.js";
 import { CatalogSchema, LangSchema } from "./locale.js";
 import { PermissionSchema, PluginManifestSchema } from "./plugin.js";
 import { RegistryPluginSchema } from "./registry.js";
@@ -600,6 +601,28 @@ export const EngineMethods = {
   "plugin.uninstall": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
   "plugin.enable": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
   "plugin.disable": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
+
+  // ---- licenze dei plugin a pagamento (dal protocollo 1.15, decisione 0013) ----
+  /** Stato delle licenze su questo computer. `available` e' falso se il sistema non puo' custodire le chiavi. */
+  "license.list": spec(
+    "plugins",
+    Empty,
+    z.strictObject({ available: z.boolean(), licenses: z.array(LicenseStatusSchema) }),
+  ),
+  /** Attiva la chiave ricevuta dal negozio per questo computer (il Notaio verifica e firma il permesso). */
+  "license.activate": spec(
+    "plugins",
+    z.strictObject({ pluginId: PluginIdSchema, licenseKey: z.string().trim().min(8).max(80) }),
+    LicenseStatusSchema,
+  ),
+  /** Chiede subito un permesso nuovo (di norma il rinnovo e' silenzioso e automatico). */
+  "license.refresh": spec(
+    "plugins",
+    z.strictObject({ pluginId: PluginIdSchema }),
+    LicenseStatusSchema,
+  ),
+  /** Libera il posto di questo computer e dimentica la chiave (cambio di computer). */
+  "license.deactivate": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
   "plugin.command": spec(
     "plugin.command",
     z.strictObject({
@@ -622,6 +645,16 @@ export const EngineMethods = {
     Empty,
   ),
   "storage.delete": spec("plugin.self", z.strictObject({ key: z.string().min(1) }), Empty),
+  /**
+   * Prova della licenza per il plugin che chiama (dal protocollo 1.15): il nucleo
+   * risponde con il permesso del plugin e con la firma del computer sulla sfida
+   * `nonce`; il plugin la verifica da solo (verifyLicenseProof). Senza licenza: errore.
+   */
+  "license.prove": spec(
+    "plugin.self",
+    z.strictObject({ nonce: z.string().min(16).max(128) }),
+    LicenseProofSchema,
+  ),
   "events.subscribe": spec(
     "plugin.self",
     z.strictObject({ names: z.array(z.string().min(1)) }),

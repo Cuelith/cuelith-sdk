@@ -1,3 +1,5 @@
+import { generateKeyPairSync, sign } from "node:crypto";
+import { licenseProofMessage } from "@cuelith/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { PluginError, runPlugin, type PluginDefinition, type Transport } from "../src/index.js";
 
@@ -198,5 +200,128 @@ describe("runPlugin", () => {
     const other = await activated({ activate: vi.fn() });
     other.engine.close();
     expect(other.exit).toHaveBeenCalledWith(0);
+  });
+});
+
+// ---- licenza del plugin (decisione 0013) ----
+
+const b64u = (data: Uint8Array | string) => Buffer.from(data).toString("base64url");
+const keyPair = () => {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  return {
+    privateKey,
+    publicKey: b64u(publicKey.export({ format: "der", type: "spki" }).subarray(-32)),
+  };
+};
+const notary = keyPair();
+const device = keyPair();
+const stranger = keyPair();
+
+function token(over: Record<string, unknown> = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  const body = b64u(
+    JSON.stringify({
+      v: 1,
+      kid: "n1",
+      plugin: "cuelith.hello",
+      device: device.publicKey,
+      instance: "inst-0001-aaaa",
+      iat: now,
+      renewAfter: now + 30 * 86400,
+      exp: now + 90 * 86400,
+      ...over,
+    }),
+  );
+  return `${body}.${b64u(sign(null, Buffer.from(`cuelith-license-v1\n${body}`), notary.privateKey))}`;
+}
+const proof = (nonce: string, signer = device, text = token()) => ({
+  token: text,
+  signature: b64u(
+    sign(null, Buffer.from(licenseProofMessage("cuelith.hello", nonce)), signer.privateKey),
+  ),
+});
+
+describe("ctx.license.verify", () => {
+  /** Attiva un modulo che verifica la licenza e risponde come farebbe il nucleo (o un suo imitatore). */
+  async function verifying(answer: (nonce: string) => { result?: unknown; error?: object }) {
+    let outcome: Promise<unknown> | undefined;
+    const { engine } = await activated({
+      activate(ctx) {
+        outcome = ctx.license.verify({ keys: { n1: notary.publicKey } });
+      },
+    });
+    const request = engine.requests("license.prove")[0];
+    const nonce = (request?.params as { nonce: string }).nonce;
+    await engine.deliver({ id: request?.id as number, ...answer(nonce) });
+    return { check: await outcome, nonce };
+  }
+
+  it("licenza valida: permesso del Notaio e firma del computer sulla sfida", async () => {
+    const { check, nonce } = await verifying((n) => ({ result: proof(n) }));
+    expect(nonce).toMatch(/^[0-9a-f]{32}$/);
+    expect(check).toMatchObject({ valid: true, renewing: false, test: false });
+    expect((check as { expires: Date }).expires.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("a più di 30 giorni dal permesso dice che si sta rinnovando; una chiave di prova si riconosce", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const old = token({ iat: now - 40 * 86400, renewAfter: now - 10 * 86400, test: true });
+    const { check } = await verifying((n) => ({ result: proof(n, device, old) }));
+    expect(check).toMatchObject({ valid: true, renewing: true, test: true });
+  });
+
+  it("senza licenza (4030) = none", async () => {
+    const { check } = await verifying(() => ({
+      error: { code: 4030, message: "core.error.licenseRequired" },
+    }));
+    expect(check).toEqual({ valid: false, reason: "none" });
+  });
+
+  it("altri errori del nucleo = unavailable", async () => {
+    const { check } = await verifying(() => ({ error: { code: -32603, message: "x" } }));
+    expect(check).toEqual({ valid: false, reason: "unavailable" });
+  });
+
+  it("un nucleo che «dice di sì» senza poterlo provare non passa", async () => {
+    // Una prova registrata per un'altra sfida (replay).
+    const replay = await verifying(() => ({ result: proof("f".repeat(32)) }));
+    expect(replay.check).toEqual({ valid: false, reason: "invalid" });
+    // Il permesso di un altro computer: la firma sulla sfida non è di quel computer.
+    const copied = await verifying((n) => ({ result: proof(n, stranger) }));
+    expect(copied.check).toEqual({ valid: false, reason: "invalid" });
+    // Un permesso non firmato dal Notaio (nucleo che se lo inventa).
+    const forged = await verifying((n) => {
+      const body = b64u(JSON.stringify({ v: 1, kid: "n1" }));
+      return { result: proof(n, device, `${body}.${b64u("x".repeat(64))}`) };
+    });
+    expect(forged.check).toEqual({ valid: false, reason: "invalid" });
+    // Un permesso scaduto.
+    const now = Math.floor(Date.now() / 1000);
+    const expired = await verifying((n) => ({
+      result: proof(
+        n,
+        device,
+        token({ iat: now - 100 * 86400, renewAfter: now - 70 * 86400, exp: now - 10 * 86400 }),
+      ),
+    }));
+    expect(expired.check).toEqual({ valid: false, reason: "invalid" });
+    // Un permesso di un altro plugin.
+    const other = await verifying((n) => ({
+      result: proof(n, device, token({ plugin: "acme.altro" })),
+    }));
+    expect(other.check).toEqual({ valid: false, reason: "invalid" });
+  });
+
+  it("senza le chiavi giuste (quelle del progetto) un permesso di prova non passa", async () => {
+    let outcome: Promise<unknown> | undefined;
+    const { engine } = await activated({
+      activate(ctx) {
+        outcome = ctx.license.verify();
+      },
+    });
+    const request = engine.requests("license.prove")[0];
+    const nonce = (request?.params as { nonce: string }).nonce;
+    await engine.deliver({ id: request?.id as number, result: proof(nonce) });
+    expect(await outcome).toEqual({ valid: false, reason: "invalid" });
   });
 });

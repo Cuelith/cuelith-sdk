@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { format } from "node:util";
 import {
   applyStatePatch,
@@ -5,11 +6,13 @@ import {
   isNextRev,
   isProtocolCompatible,
   PROTOCOL_VERSION,
+  verifyLicenseProof,
   type EngineMethodName,
   type EngineMethodParams,
   type EngineMethodResult,
   type JsonPatchOperation,
   type Lang,
+  type LicenseProof,
   type Permission,
   type RpcErrorObject,
   type RpcId,
@@ -35,6 +38,27 @@ export class PluginError extends Error {
     this.params = params;
   }
 }
+
+/** Esito di `ctx.license.verify()`. */
+export type LicenseCheck =
+  | {
+      readonly valid: true;
+      /** Fino a quando il permesso vale senza rinnovo. */
+      readonly expires: Date;
+      /** Il programma sta rinnovando (passati 30 giorni): il plugin può continuare a funzionare. */
+      readonly renewing: boolean;
+      /** Chiave di prova del fornitore, non una vendita vera. */
+      readonly test: boolean;
+    }
+  | {
+      readonly valid: false;
+      /**
+       * `none`: nessuna licenza valida su questo computer (mai attivata, scaduta o revocata);
+       * `invalid`: il nucleo ha risposto ma la prova non regge (permesso o firma sbagliati: nucleo
+       * modificato o permesso copiato); `unavailable`: il nucleo non sa rispondere.
+       */
+      readonly reason: "none" | "invalid" | "unavailable";
+    };
 
 export type CommandHandler = (params: Readonly<Record<string, unknown>>) => unknown;
 export type EventHandler = (payload: unknown, name: string) => void;
@@ -73,6 +97,17 @@ export interface PluginContext {
     current(): StateDocument | undefined;
     /** Chiamata a ogni cambio dello stato dello show; restituisce la funzione per smettere. */
     watch(listener: (state: StateDocument) => void): Promise<() => void>;
+  };
+  /**
+   * Licenza di un plugin a pagamento (decisione 0013). Il nucleo è GPL e chi lo
+   * modifica può togliere i suoi controlli: per questo il plugin si verifica da
+   * solo. `verify()` chiede al nucleo il permesso e la firma del computer su una
+   * sfida casuale e li controlla qui, con le chiavi pubbliche del Notaio: né un
+   * permesso copiato da un altro computer né un nucleo che «dice di sì» bastano.
+   * Si chiama all'avvio del plugin, mai in mezzo a una diretta.
+   */
+  readonly license: {
+    verify(options?: { readonly keys?: Readonly<Record<string, string>> }): Promise<LicenseCheck>;
   };
   /** Spazio dati del modulo nel motore (permesso "storage"). */
   readonly storage: {
@@ -227,6 +262,31 @@ export function runPlugin(
         else listener(state.doc);
         return () => {
           watchers.delete(listener);
+        };
+      },
+    },
+    license: {
+      verify: async (options) => {
+        const nonce = randomBytes(16).toString("hex");
+        let proof: LicenseProof;
+        try {
+          proof = (await call("license.prove", { nonce })) as LicenseProof;
+        } catch (error) {
+          // 4030: nessuna licenza valida; qualsiasi altro errore: il nucleo non sa rispondere.
+          const code = (error as { code?: unknown }).code;
+          return { valid: false, reason: code === ErrorCode.Forbidden ? "none" : "unavailable" };
+        }
+        const payload = await verifyLicenseProof(proof, {
+          pluginId: raw.pluginId as string,
+          nonce,
+          ...(options?.keys === undefined ? {} : { keys: options.keys }),
+        });
+        if (payload === undefined) return { valid: false, reason: "invalid" };
+        return {
+          valid: true,
+          expires: new Date(payload.exp * 1000),
+          renewing: Date.now() >= payload.renewAfter * 1000,
+          test: payload.test === true,
         };
       },
     },
