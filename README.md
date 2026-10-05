@@ -13,4 +13,4 @@ In arrivo: `@cuelith/cli` (`cuelith-plugin new | dev | pack`). Un modulo d'esemp
 
 Gli schemi JSON pubblici sono in [`schema/`](schema): `show-1.json` (file `.cuelith`), `plugin-1.json` (`cuelith-plugin.json`), `layout-1.json` (modalità).
 
-Specifica completa: repo [`cuelith-docs`](https://github.com/Cuelith/cuelith-docs). Licenza Apache 2.0.
+Specifica completa: repo [`cuelith-docs`](https://github.com/Cuelith/cuelith-docs). Licenza Apache 2.0, di proposito diversa da quella del nucleo (GPL 3.0 o successiva): chi scrive un plugin incorpora l'SDK e deve poterlo fare con qualsiasi licenza, anche chiusa e a pagamento. L'[eccezione per i plugin](https://github.com/Cuelith/cuelith-core/blob/main/PLUGIN-EXCEPTION.md) del nucleo copre il resto dell'interfaccia.
