@@ -1,7 +1,7 @@
 {
   "name": "@cuelith/sdk",
-  "version": "0.1.0",
-  "description": "Per i moduli di Cuelith con codice: definePlugin, comandi, eventi, stato dello show e spazio dati, nel processo separato del modulo.",
+  "version": "0.7.0",
+  "description": "SDK for Cuelith plugins that run their own process: definePlugin, commands, events, show state and data storage.",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -16,7 +16,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -31,5 +33,10 @@
     "@types/node": "24.19.0",
     "typescript": "6.0.3",
     "vitest": "5.0.2"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/Cuelith/cuelith-sdk#readme",
+  "bugs": "https://github.com/Cuelith/cuelith-sdk/issues"
 }

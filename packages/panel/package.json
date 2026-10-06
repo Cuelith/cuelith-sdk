@@ -1,7 +1,7 @@
 {
   "name": "@cuelith/panel",
-  "version": "0.1.0",
-  "description": "Per i pannelli dei moduli di Cuelith: collegamento alla postazione, testi tradotti, stato dello show e comandi.",
+  "version": "0.7.0",
+  "description": "Helpers for Cuelith plugin panels: call the plugin commands and follow the show state from an isolated panel.",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -16,7 +16,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -31,5 +33,10 @@
     "@types/node": "24.19.0",
     "typescript": "6.0.3",
     "vitest": "5.0.2"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/Cuelith/cuelith-sdk#readme",
+  "bugs": "https://github.com/Cuelith/cuelith-sdk/issues"
 }
