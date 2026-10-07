@@ -5,7 +5,7 @@ import { z } from "zod";
 // JSON su stdio per i moduli. Stesso formato ovunque.
 
 /** Versione del protocollo. Versioni maggiori diverse vengono rifiutate (4260). */
-export const PROTOCOL_VERSION = "1.15.0";
+export const PROTOCOL_VERSION = "1.16.0";
 export const DEFAULT_ENGINE_PORT = 7420;
 export const RPC_PATH = "/rpc";
 export const MDNS_SERVICE_TYPE = "cuelith";

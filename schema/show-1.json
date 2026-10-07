@@ -315,6 +315,52 @@
             ],
             "additionalProperties": false
           },
+          "textStyle": {
+            "type": "object",
+            "properties": {
+              "scale": {
+                "type": "number",
+                "minimum": 0.5,
+                "maximum": 2
+              },
+              "font": {
+                "type": "string",
+                "enum": [
+                  "display",
+                  "body",
+                  "mono"
+                ]
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              "align": {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "center",
+                  "right"
+                ]
+              },
+              "lineHeight": {
+                "type": "number",
+                "minimum": 0.8,
+                "maximum": 2.5
+              },
+              "weight": {
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "bold"
+                ]
+              },
+              "uppercase": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
           "tags": {
             "type": "array",
             "items": {

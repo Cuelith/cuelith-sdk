@@ -21,6 +21,7 @@ import {
   MediaInfoSchema,
   MediaKindSchema,
   TagSchema,
+  TextOverrideSchema,
   FeedSchema,
   FieldSchema,
   LayerIdSchema,
@@ -65,6 +66,14 @@ export const PositionSchema = z.union([
   z.strictObject({ itemId: IdSchema, slideIndex: Index }),
 ]);
 export type Position = z.infer<typeof PositionSchema>;
+
+/** Uno stile globale del testo salvato dall'utente; "style" lo valida il nucleo (core-looks). */
+export const TextStyleRecordSchema = z.strictObject({
+  id: IdSchema,
+  name: z.string().min(1).max(60),
+  style: Params,
+});
+export type TextStyleRecord = z.infer<typeof TextStyleRecordSchema>;
 
 export const SlideInputSchema = z.strictObject({
   fields: z.record(z.string().min(1), FieldSchema),
@@ -359,6 +368,8 @@ export const EngineMethods = {
       background: MediaRefSchema.nullable().optional(),
       meta: Params.optional(),
       credits: CreditsSchema.nullable().optional(),
+      /** Stile del testo dell'elemento (dal protocollo 1.16); null lo toglie. */
+      textStyle: TextOverrideSchema.nullable().optional(),
       tags: z.array(TagSchema).optional(),
       attachments: z.array(AttachmentSchema).optional(),
     }),
@@ -464,6 +475,25 @@ export const EngineMethods = {
   "show.rename": spec("show", z.strictObject({ name: z.string().min(1) }), Rev),
   /** Elimina la copia automatica proposta in live.recovery (dal protocollo 1.1). */
   "show.discardRecovery": spec("show", Empty, Rev),
+
+  // ---- stili globali del testo (dal protocollo 1.16, decisione 0015) ----
+  // Creati dall'utente e salvati nell'archivio del computer; si scelgono dal look.
+  "textstyle.list": spec("read", Empty, z.strictObject({ styles: z.array(TextStyleRecordSchema) })),
+  "textstyle.create": spec(
+    "library",
+    z.strictObject({ name: z.string().trim().min(1).max(60), style: Params }),
+    Created,
+  ),
+  "textstyle.update": spec(
+    "library",
+    z.strictObject({
+      id: IdSchema,
+      name: z.string().trim().min(1).max(60).optional(),
+      style: Params.optional(),
+    }),
+    Rev,
+  ),
+  "textstyle.delete": spec("library", z.strictObject({ id: IdSchema }), Rev),
 
   // ---- librerie e archivio media (dal protocollo 1.2) ----
   "library.list": spec("read", Empty, z.strictObject({ libraries: z.array(LibrarySchema) })),

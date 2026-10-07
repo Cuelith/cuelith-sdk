@@ -110,6 +110,26 @@ export const CreditsSchema = z.strictObject({
 });
 export type Credits = z.infer<typeof CreditsSchema>;
 
+/**
+ * Modifiche dell'editor allo stile del testo di un solo elemento (dal protocollo 1.16,
+ * decisione 0015): solo cio' che l'utente ha toccato. La dimensione e' una scala sullo
+ * stile in uso, non un numero assoluto. Uno stile globale scelto dalla regia le sostituisce
+ * finche' e' attivo; tolto lo stile globale, tornano.
+ */
+export const TextOverrideSchema = z.strictObject({
+  scale: z.number().min(0.5).max(2).optional(),
+  font: z.enum(["display", "body", "mono"]).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
+  align: z.enum(["left", "center", "right"]).optional(),
+  lineHeight: z.number().min(0.8).max(2.5).optional(),
+  weight: z.enum(["normal", "bold"]).optional(),
+  uppercase: z.boolean().optional(),
+});
+export type TextOverride = z.infer<typeof TextOverrideSchema>;
+
 export const TagSchema = z.string().trim().min(1).max(40);
 
 /** Un elemento dello show copiato da una libreria: da dove viene e di quando e' la copia. */
@@ -144,6 +164,8 @@ export const ItemSchema = z.strictObject({
   background: MediaRefSchema.optional(),
   meta: Params,
   credits: CreditsSchema.optional(),
+  /** Stile del testo di questo elemento (dal protocollo 1.16): vedi TextOverrideSchema. */
+  textStyle: TextOverrideSchema.optional(),
   tags: z.array(TagSchema).optional(),
   attachments: z.array(AttachmentSchema).optional(),
   /** Versione di un altro elemento (es. un arrangiamento diverso dello stesso canto). */
