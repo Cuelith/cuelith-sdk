@@ -184,5 +184,8 @@ export const CORE_PANELS = [
   // Dal protocollo 1.12:
   /** Sfondi dei testi: miniature delle immagini dell'archivio, velo (decisione 0003). */
   "core.backgrounds",
+  // Dal protocollo 1.16:
+  /** Stili globali del testo, sotto gli sfondi (decisione 0015). */
+  "core.textstyles",
 ] as const;
 export type CorePanelId = (typeof CORE_PANELS)[number];
