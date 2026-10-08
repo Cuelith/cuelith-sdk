@@ -200,3 +200,98 @@ describe("icona e moduli attivi (protocollo 1.6)", () => {
     ).toBe(false);
   });
 });
+
+describe("impostazioni dei plugin (protocollo 1.18)", () => {
+  const withSettings = (settings: unknown): unknown => ({
+    ...bibleManifest(),
+    contributes: { ...bibleManifest().contributes, settings },
+  });
+  const own = (key: string) => `${bibleManifest().id}.${key}`;
+
+  it("accetta descrizione, limiti e scelte coerenti", () => {
+    expect(
+      messages(
+        withSettings([
+          {
+            key: "size",
+            title: own("s.size"),
+            description: own("s.size.d"),
+            type: "number",
+            default: 40,
+            min: 10,
+            max: 100,
+          },
+          {
+            key: "mode",
+            title: own("s.mode"),
+            type: "string",
+            default: "a",
+            choices: [
+              { value: "a", title: own("s.mode.a") },
+              { value: "b", title: own("s.mode.b") },
+            ],
+          },
+          { key: "on", title: own("s.on"), type: "boolean", default: true },
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("rifiuta limiti su un testo, limiti rovesciati e predefiniti fuori limite", () => {
+    const one = (extra: Record<string, unknown>) =>
+      messages(withSettings([{ key: "x", title: own("s.x"), type: "number", ...extra }]));
+    expect(one({ min: 5, max: 1 })).toContain("protocol.manifest.settingInvalid");
+    expect(one({ min: 0, max: 10, default: 11 })).toContain("protocol.manifest.settingInvalid");
+    expect(
+      messages(withSettings([{ key: "x", title: own("s.x"), type: "string", min: 1 }])),
+    ).toContain("protocol.manifest.settingInvalid");
+  });
+
+  it("rifiuta predefiniti di un altro tipo, scelte sbagliate e chiavi doppie", () => {
+    expect(
+      messages(withSettings([{ key: "x", title: own("s.x"), type: "string", default: 3 }])),
+    ).toContain("protocol.manifest.settingInvalid");
+    const choice = (value: string | number) => ({ value, title: own("s.c") });
+    const choices = (list: unknown[], extra: Record<string, unknown> = {}) =>
+      messages(
+        withSettings([{ key: "x", title: own("s.x"), type: "string", choices: list, ...extra }]),
+      );
+    expect(choices([choice(1)])).toContain("protocol.manifest.settingInvalid");
+    expect(choices([choice("a"), choice("a")])).toContain("protocol.manifest.settingInvalid");
+    expect(choices([choice("a")], { default: "z" })).toContain("protocol.manifest.settingInvalid");
+    expect(
+      messages(
+        withSettings([{ key: "x", title: own("s.x"), type: "boolean", choices: [choice("a")] }]),
+      ),
+    ).toContain("protocol.manifest.settingInvalid");
+    expect(
+      messages(
+        withSettings([
+          { key: "x", title: own("s.x"), type: "boolean" },
+          { key: "x", title: own("s.y"), type: "boolean" },
+        ]),
+      ),
+    ).toContain("protocol.manifest.duplicateId");
+  });
+
+  it("rifiuta testi fuori dallo spazio del plugin", () => {
+    expect(
+      messages(
+        withSettings([
+          { key: "x", title: own("s.x"), description: "altro.spazio.d", type: "boolean" },
+        ]),
+      ),
+    ).not.toEqual([]);
+  });
+});
+
+describe("immagine di copertina (protocollo 1.19)", () => {
+  it("e' un PNG, JPEG o WebP del pacchetto; altro no", () => {
+    for (const image of ["media/cover.png", "cover.JPG", "a/b.jpeg", "x.webp"]) {
+      expect(messages({ ...bibleManifest(), image })).toEqual([]);
+    }
+    for (const image of ["cover.gif", "cover.svg", "cover", "../cover.png"]) {
+      expect(messages({ ...bibleManifest(), image })).not.toEqual([]);
+    }
+  });
+});

@@ -1,6 +1,6 @@
 {
   "name": "@cuelith/protocol",
-  "version": "1.16.0",
+  "version": "1.19.0",
   "description": "Types, schemas and methods of the Cuelith plugin protocol: the single contract between engine, stations and plugins.",
   "type": "module",
   "license": "Apache-2.0",

@@ -4,6 +4,9 @@ import {
   packageSignatureMessage,
   HostToPanelSchema,
   PanelToHostSchema,
+  CoverImageSchema,
+  GuideSchema,
+  RegistryExtrasSchema,
   RegistryIndexSchema,
   RegistryPluginSchema,
 } from "../src/index.js";
@@ -199,6 +202,58 @@ describe("plugin a pagamento nel registry (decisione 0013)", () => {
         generatedAt: "2026-10-05T10:00:00.000Z",
         plugins: [],
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe("immagine e guida d'uso (protocollo 1.19)", () => {
+  const png = `data:image/png;base64,${Buffer.from("immagine").toString("base64")}`;
+
+  it("l'immagine e' PNG, JPEG o WebP incorporata, entro il limite", () => {
+    expect(CoverImageSchema.safeParse(png).success).toBe(true);
+    expect(CoverImageSchema.safeParse("data:image/webp;base64,AAAA").success).toBe(true);
+    expect(CoverImageSchema.safeParse("data:image/gif;base64,AAAA").success).toBe(false);
+    expect(CoverImageSchema.safeParse("data:image/svg+xml;base64,AAAA").success).toBe(false);
+    expect(CoverImageSchema.safeParse("https://esempio.it/a.png").success).toBe(false);
+    expect(CoverImageSchema.safeParse(`data:image/png;base64,${"A".repeat(300_000)}`).success).toBe(
+      false,
+    );
+  });
+
+  it("la guida ha passi con titolo e testo, per lingua, fino a otto", () => {
+    const step = { title: "Primo passo", body: "Apri lo strumento e scegli un brano." };
+    expect(GuideSchema.safeParse({ it: [step], en: [step] }).success).toBe(true);
+    expect(GuideSchema.safeParse({ it: [] }).success).toBe(false);
+    expect(GuideSchema.safeParse({ it: Array(9).fill(step) }).success).toBe(false);
+    expect(GuideSchema.safeParse({ it: [{ title: "x", body: "y", extra: 1 }] }).success).toBe(
+      false,
+    );
+    expect(GuideSchema.safeParse({ italiano: [step] }).success).toBe(false);
+  });
+
+  it("la voce del registry li accetta e resta valida senza", () => {
+    const step = { title: "Primo passo", body: "Apri lo strumento." };
+    expect(
+      RegistryPluginSchema.safeParse({ ...registryEntry(), guide: { it: [step] }, image: png })
+        .success,
+    ).toBe(true);
+    expect(RegistryPluginSchema.safeParse(registryEntry()).success).toBe(true);
+  });
+
+  it("extras.json: un'immagine e una guida per plugin, solo campi noti", () => {
+    const extras = {
+      schema: 1,
+      generatedAt: "2026-10-07T10:00:00.000Z",
+      plugins: {
+        "cuelith.songs": { image: png, guide: { it: [{ title: "Passo", body: "Testo" }] } },
+        "acme.vuoto": {},
+      },
+    };
+    expect(RegistryExtrasSchema.safeParse(extras).success).toBe(true);
+    expect(RegistryExtrasSchema.safeParse({ ...extras, schema: 2 }).success).toBe(false);
+    expect(
+      RegistryExtrasSchema.safeParse({ ...extras, plugins: { "cuelith.songs": { icon: "x" } } })
+        .success,
     ).toBe(false);
   });
 });

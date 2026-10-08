@@ -266,6 +266,8 @@ export const EngineMethods = {
     Created,
   ),
   "layer.clear": spec("cue", z.strictObject({ layer: LayerIdSchema }), Rev),
+  /** «Solo sfondo» (dal protocollo 1.17): nasconde o rimostra il testo su tutte le uscite. */
+  "live.textHidden": spec("cue", z.strictObject({ hidden: z.boolean() }), Rev),
   /** Messaggio su un'uscita (es. al relatore sul palco); testo vuoto = lo toglie. */
   "message.send": spec(
     "cue",
@@ -631,6 +633,32 @@ export const EngineMethods = {
   "plugin.uninstall": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
   "plugin.enable": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
   "plugin.disable": spec("plugins", z.strictObject({ pluginId: PluginIdSchema }), Empty),
+  /**
+   * Impostazioni di un plugin (dal protocollo 1.18): i valori in uso, cioe' i predefiniti
+   * del manifest con sopra le scelte dell'utente. Ogni chiave dichiarata ha un valore se
+   * ne ha uno predefinito o scelto.
+   */
+  "pluginsettings.get": spec(
+    "read",
+    z.strictObject({ pluginId: PluginIdSchema }),
+    z.strictObject({
+      values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+    }),
+  ),
+  /**
+   * Cambia una o piu' impostazioni di un plugin (dal protocollo 1.18). Il motore controlla
+   * ogni valore contro il manifest (tipo, limiti, scelte); `null` toglie la scelta
+   * dell'utente e torna al valore predefinito. Il plugin in funzione riceve l'evento
+   * `core.plugin.settingsChanged` con i valori nuovi.
+   */
+  "pluginsettings.set": spec(
+    "plugins",
+    z.strictObject({
+      pluginId: PluginIdSchema,
+      values: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+    }),
+    Empty,
+  ),
 
   // ---- licenze dei plugin a pagamento (dal protocollo 1.15, decisione 0013) ----
   /** Stato delle licenze su questo computer. `available` e' falso se il sistema non puo' custodire le chiavi. */
@@ -798,5 +826,6 @@ export const CORE_EVENTS = [
   "core.show.opened",
   "core.show.saved",
   "core.plugin.stateChanged",
+  "core.plugin.settingsChanged",
 ] as const;
 export type CoreEvent = (typeof CORE_EVENTS)[number];

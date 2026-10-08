@@ -1,6 +1,6 @@
 {
   "name": "@cuelith/sdk",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "SDK for Cuelith plugins that run their own process: definePlugin, commands, events, show state and data storage.",
   "type": "module",
   "license": "Apache-2.0",

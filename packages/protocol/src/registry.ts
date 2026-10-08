@@ -1,6 +1,7 @@
 import { valid } from "semver";
 import { z } from "zod";
 import { PluginIdSchema } from "./ids.js";
+import { LangSchema } from "./locale.js";
 import { PermissionSchema, PluginFamilySchema } from "./plugin.js";
 import { SemverRangeSchema } from "./show.js";
 
@@ -49,6 +50,26 @@ export function packageSignatureMessage(id: string, version: string, sha256: str
   return ["cuelith-package-v1", id, version, sha256].join("\n");
 }
 const Version = z.string().refine((v) => valid(v) !== null, "protocol.manifest.versionInvalid");
+
+/**
+ * Immagine di copertina di un plugin (dal protocollo 1.19), incorporata come immagine PNG, JPEG
+ * o WebP (150 KB al massimo): il marketplace la mostra prima di installare, senza altre richieste.
+ */
+export const COVER_MAX_BYTES = 150 * 1024;
+export const CoverImageSchema = z
+  .string()
+  .regex(/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/, "protocol.registry.imageInvalid")
+  .max(Math.ceil((COVER_MAX_BYTES * 4) / 3) + 64);
+
+/** Un passo della guida d'uso mostrata prima di installare: titolo breve e spiegazione. */
+export const GuideStepSchema = z.strictObject({
+  title: z.string().min(1).max(80),
+  body: z.string().min(1).max(600),
+});
+export type GuideStep = z.infer<typeof GuideStepSchema>;
+/** La guida d'uso, nelle lingue che l'autore ha tradotto. */
+export const GuideSchema = z.partialRecord(LangSchema, z.array(GuideStepSchema).min(1).max(8));
+export type Guide = z.infer<typeof GuideSchema>;
 
 export const RegistryVersionSchema = z.strictObject({
   version: Version,
@@ -99,6 +120,13 @@ export const RegistryPluginSchema = z
       .regex(/^data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+$/, "protocol.registry.iconInvalid")
       .max(64 * 1024)
       .optional(),
+    /**
+     * Guida d'uso e immagine (dal protocollo 1.19). Non stanno mai negli indici (le app
+     * gia' installate rifiutano campi nuovi): viaggiano in `extras.json` e il programma li
+     * unisce alla voce. La guida e' scritta nella voce del registry; l'immagine e' un file.
+     */
+    guide: GuideSchema.optional(),
+    image: CoverImageSchema.optional(),
     /** Dalla piu' recente alla piu' vecchia. */
     versions: z.array(RegistryVersionSchema).min(1),
     /** "free" (predefinito: senza il campo e' gratuito) o "paid": si acquista dal negozio dell'autore. */
@@ -159,3 +187,17 @@ export const RegistryIndexSchema = z
     });
   });
 export type RegistryIndex = z.infer<typeof RegistryIndexSchema>;
+
+/** Indirizzo pubblico degli extra (dal protocollo 1.19): immagini e guide d'uso dei plugin. */
+export const REGISTRY_EXTRAS_URL = "https://cuelith.github.io/cuelith-registry/extras.json";
+
+/** `extras.json`: per ogni plugin l'immagine di copertina e la guida d'uso, se ce l'ha. */
+export const RegistryExtrasSchema = z.strictObject({
+  schema: z.literal(1),
+  generatedAt: z.iso.datetime(),
+  plugins: z.record(
+    PluginIdSchema,
+    z.strictObject({ image: CoverImageSchema.optional(), guide: GuideSchema.optional() }),
+  ),
+});
+export type RegistryExtras = z.infer<typeof RegistryExtrasSchema>;

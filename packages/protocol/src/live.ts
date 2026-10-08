@@ -209,6 +209,12 @@ export const LiveStateSchema = z.strictObject({
    * postazioni rileggono i testi.
    */
   lang: LangSchema.optional(),
+  /**
+   * «Solo sfondo» (dal protocollo 1.17): il testo e i crediti non si mostrano su nessuna
+   * uscita finche' e' acceso; lo sfondo e la navigazione tra le slide restano come sono.
+   * Assente = spento.
+   */
+  textHidden: z.boolean().optional(),
 });
 export type LiveState = z.infer<typeof LiveStateSchema>;
 

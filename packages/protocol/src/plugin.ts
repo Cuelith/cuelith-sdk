@@ -144,8 +144,21 @@ export const ContributesSchema = z.strictObject({
       z.strictObject({
         key: LocalIdSchema,
         title: MessageKeySchema,
+        /** Una frase che spiega l'impostazione, sotto il campo (dal protocollo 1.18). */
+        description: MessageKeySchema.optional(),
         type: z.enum(["string", "number", "boolean"]),
         default: z.union([z.string(), z.number(), z.boolean()]).optional(),
+        /** Limiti di un numero (dal protocollo 1.18). */
+        min: z.number().optional(),
+        max: z.number().optional(),
+        /** Valori ammessi, da scegliere da un elenco (dal protocollo 1.18); non per i booleani. */
+        choices: z
+          .array(
+            z.strictObject({ value: z.union([z.string(), z.number()]), title: MessageKeySchema }),
+          )
+          .min(1)
+          .max(50)
+          .optional(),
       }),
     )
     .optional(),
@@ -185,6 +198,14 @@ const ManifestShape = z.strictObject({
   icon: RelativePathSchema.refine(
     (p) => p.toLowerCase().endsWith(".svg"),
     "protocol.manifest.iconSvg",
+  ).optional(),
+  /**
+   * Immagine di copertina (dal protocollo 1.19): PNG, JPEG o WebP nel pacchetto, al massimo
+   * 150 KB. La mostrano il marketplace e la pagina del plugin sul sito, prima di installare.
+   */
+  image: RelativePathSchema.refine(
+    (p) => /\.(?:png|jpe?g|webp)$/i.test(p),
+    "protocol.manifest.imageFormat",
   ).optional(),
   /** Pannelli, caricati in iframe isolati. */
   ui: z.strictObject({ entry: RelativePathSchema }).optional(),
@@ -275,8 +296,35 @@ export const PluginManifestSchema = ManifestShape.superRefine((m, ctx) => {
   c.commands?.forEach((t, i) => {
     ownKey(t.title, ["contributes", "commands", i, "title"]);
   });
+  const settingKeys = new Set<string>();
   c.settings?.forEach((s, i) => {
     ownKey(s.title, ["contributes", "settings", i, "title"]);
+    if (s.description !== undefined)
+      ownKey(s.description, ["contributes", "settings", i, "description"]);
+    if (settingKeys.has(s.key))
+      issue("protocol.manifest.duplicateId", ["contributes", "settings", i]);
+    settingKeys.add(s.key);
+    const bad = (field: string) => {
+      issue("protocol.manifest.settingInvalid", ["contributes", "settings", i, field]);
+    };
+    if (s.type !== "number" && (s.min !== undefined || s.max !== undefined)) bad("min");
+    if (s.min !== undefined && s.max !== undefined && s.min > s.max) bad("min");
+    if (s.default !== undefined && typeof s.default !== s.type) bad("default");
+    if (s.type === "number" && typeof s.default === "number") {
+      if ((s.min !== undefined && s.default < s.min) || (s.max !== undefined && s.default > s.max))
+        bad("default");
+    }
+    if (s.choices !== undefined) {
+      if (s.type === "boolean") bad("choices");
+      s.choices.forEach((choice, j) => {
+        ownKey(choice.title, ["contributes", "settings", i, "choices", j, "title"]);
+        if (typeof choice.value !== s.type) bad("choices");
+      });
+      if (new Set(s.choices.map((choice) => choice.value)).size !== s.choices.length)
+        bad("choices");
+      if (s.default !== undefined && !s.choices.some((choice) => choice.value === s.default))
+        bad("default");
+    }
   });
 
   // Un programma nativo non si puo' chiudere in un recinto: lo deve dire.
