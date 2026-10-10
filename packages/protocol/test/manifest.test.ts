@@ -198,6 +198,24 @@ describe("icona e moduli attivi (protocollo 1.6)", () => {
         contributes: { panels: [{ id: "editor", title: "a.b", placement: "center" }] },
       }),
     ).toBe(false);
+    // Una barra di strumenti degli editor (protocollo 1.23) non e' una scheda: il plugin resta passivo.
+    expect(
+      isActivePlugin({
+        contributes: { panels: [{ id: "format", title: "a.b", placement: "editor" }] },
+      }),
+    ).toBe(false);
+  });
+
+  it("accetta i pannelli per la barra degli editor e rifiuta posti che non esistono", () => {
+    const withPanel = (placement: string): unknown => ({
+      ...bibleManifest(),
+      contributes: {
+        ...bibleManifest().contributes,
+        panels: [{ id: "format", title: `${bibleManifest().id}.format`, placement }],
+      },
+    });
+    expect(messages(withPanel("editor"))).toEqual([]);
+    expect(messages(withPanel("floating"))).not.toEqual([]);
   });
 });
 

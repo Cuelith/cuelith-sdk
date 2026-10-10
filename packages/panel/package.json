@@ -1,6 +1,6 @@
 {
   "name": "@cuelith/panel",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Helpers for Cuelith plugin panels: call the plugin commands and follow the show state from an isolated panel.",
   "type": "module",
   "license": "Apache-2.0",

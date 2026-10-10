@@ -1,5 +1,7 @@
 import {
   CUE_KEYS,
+  cleanSpans,
+  shiftSpans,
   PANEL_CONNECT,
   PANEL_READY,
   PANEL_HOST_METHODS,
@@ -11,7 +13,9 @@ import {
   type HostToPanel,
   type Lang,
   type MessageParams,
+  type Span,
   type StateDocument,
+  type TextFont,
 } from "@cuelith/protocol";
 
 /** Errore di un comando: chiave di traduzione + codice del protocollo. */
@@ -314,5 +318,113 @@ function createConnection(ready: (panel: Panel) => void): { attach(port: Message
       port = next;
       port.onmessage = onMessage;
     },
+  };
+}
+
+/** Cio' che l'editor di un plugin sa del testo che sta scrivendo (vedi `bindRichText`). */
+export interface RichTextState {
+  readonly text: string;
+  readonly spans?: readonly Span[] | undefined;
+  /** Tratto selezionato, in unita' UTF-16 (come `selectionStart` / `selectionEnd`). */
+  readonly selection: { readonly start: number; readonly end: number };
+  /** Il carattere con cui il testo e' mostrato (dice se il corsivo esiste davvero). */
+  readonly font?: TextFont | undefined;
+}
+
+export interface RichTextBinding {
+  /** Da chiamare a ogni cambio del testo, della selezione o delle parole formattate. */
+  update(state: RichTextState): void;
+  /** L'editor si chiude: il plugin annesso non ha piu' niente da formattare. */
+  end(): void;
+}
+
+/**
+ * Collega un testo del plugin al plugin annesso della formattazione (protocollo 1.22): l'editor
+ * descrive il testo e la selezione, chi formatta chiede le modifiche e queste tornano qui come
+ * nuovi intervalli (`onSpans`). Il testo lo scrive solo l'editor. `field` e' un nome che
+ * distingue questo testo dagli altri dello stesso plugin (es. l'id della slide).
+ *
+ * Se nessun plugin annesso e' acceso, non succede niente di visibile: l'editor funziona come prima.
+ */
+export function bindRichText(
+  panel: Panel,
+  field: string,
+  onSpans: (spans: Span[]) => void,
+): RichTextBinding {
+  const mine = (state: StateDocument) => {
+    const session = state.live.richText;
+    return session?.owner === panel.pluginId && session.field === field ? session : undefined;
+  };
+  // Si parte dal conto di adesso: le modifiche vecchie non si riapplicano.
+  let applied = mine(panel.state)?.applied ?? 0;
+  const stop = panel.onState((state) => {
+    const session = mine(state);
+    if (session === undefined || session.applied === applied) return;
+    applied = session.applied;
+    onSpans(cleanSpans(session.text, session.spans));
+  });
+  let ended = false;
+  return {
+    update: (next) => {
+      if (ended) return;
+      void panel
+        .call("richtext.session", {
+          owner: panel.pluginId,
+          field,
+          text: next.text,
+          ...(next.spans === undefined || next.spans.length === 0
+            ? {}
+            : { spans: [...next.spans] }),
+          selection: { start: next.selection.start, end: next.selection.end },
+          ...(next.font === undefined ? {} : { font: next.font }),
+        })
+        .catch(() => undefined);
+    },
+    end: () => {
+      ended = true;
+      stop();
+      void panel.call("richtext.end", { owner: panel.pluginId, field }).catch(() => undefined);
+    },
+  };
+}
+
+/**
+ * Come `bindRichText` per una casella di testo: segue testo e selezione da sola. `getSpans`
+ * e `setSpans` leggono e scrivono le parole formattate del plugin; la formattazione si sposta
+ * con il testo mentre si scrive (`shiftSpans`). Restituisce la funzione per scollegarla.
+ */
+export function bindTextarea(
+  panel: Panel,
+  area: HTMLTextAreaElement,
+  field: string,
+  options: {
+    getSpans: () => readonly Span[];
+    setSpans: (spans: Span[]) => void;
+    font?: TextFont | undefined;
+  },
+): () => void {
+  const binding = bindRichText(panel, field, options.setSpans);
+  const report = (): void => {
+    binding.update({
+      text: area.value,
+      spans: options.getSpans(),
+      selection: { start: area.selectionStart, end: area.selectionEnd },
+      font: options.font,
+    });
+  };
+  let before = area.value;
+  const onInput = (): void => {
+    options.setSpans(shiftSpans(before, area.value, options.getSpans()));
+    before = area.value;
+    report();
+  };
+  const events = ["select", "keyup", "mouseup", "focus"] as const;
+  for (const type of events) area.addEventListener(type, report);
+  area.addEventListener("input", onInput);
+  report();
+  return () => {
+    for (const type of events) area.removeEventListener(type, report);
+    area.removeEventListener("input", onInput);
+    binding.end();
   };
 }

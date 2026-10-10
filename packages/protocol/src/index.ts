@@ -1,6 +1,7 @@
 export * from "./ids.js";
 export * from "./roles.js";
 export * from "./show.js";
+export * from "./rich.js";
 export * from "./live.js";
 export * from "./mode.js";
 export * from "./locale.js";

@@ -7,6 +7,7 @@ import {
   QualifiedTypeSchema,
   providerOf,
 } from "./ids.js";
+import { MAX_SPANS, SpanSchema } from "./rich.js";
 import { RoleIdSchema } from "./roles.js";
 
 // Modello dati dello show (documento di progetto, cap. 22). Lo show e' il
@@ -24,7 +25,17 @@ const Unit = z.number().min(0).max(1);
 export const FIELD_KINDS = ["text", "chords", "notes", "reference"] as const;
 
 export const FieldSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("text"), value: z.string() }),
+  z
+    .strictObject({
+      kind: z.literal("text"),
+      value: z.string(),
+      /** Parole formattate (dal protocollo 1.21): vedi rich.ts. Chi non le conosce legge `value`. */
+      spans: z.array(SpanSchema).max(MAX_SPANS).optional(),
+    })
+    .refine((field) => (field.spans ?? []).every((span) => span.end <= field.value.length), {
+      message: "protocol.field.spansOutside",
+      path: ["spans"],
+    }),
   /** Formato ChordPro. */
   z.strictObject({ kind: z.literal("chords"), value: z.string() }),
   z.strictObject({ kind: z.literal("notes"), value: z.string() }),
@@ -144,6 +155,29 @@ export const TEXT_FONT_IDS = [
   "pacifico",
   "ibm-plex-mono",
 ] as const;
+/**
+ * I caratteri che hanno un corsivo vero (dal protocollo 1.22): gli altri non si mostrano mai
+ * inclinati, per non inventare lettere che le uscite non disegnerebbero allo stesso modo.
+ */
+export const TEXT_FONTS_WITH_ITALIC: readonly string[] = [
+  "display",
+  "lora",
+  "merriweather",
+  "playfair-display",
+  "eb-garamond",
+  "crimson-pro",
+  "bitter",
+  "inter",
+  "montserrat",
+  "open-sans",
+  "nunito",
+  "raleway",
+  "work-sans",
+  "source-sans-3",
+  "dm-sans",
+  "libre-franklin",
+  "ibm-plex-mono",
+];
 export const TextFontSchema = z.enum(TEXT_FONT_IDS);
 export type TextFont = z.infer<typeof TextFontSchema>;
 

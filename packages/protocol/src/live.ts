@@ -2,7 +2,54 @@ import { z } from "zod";
 import { IdSchema, PluginIdSchema } from "./ids.js";
 import { LangSchema } from "./locale.js";
 import { RoleIdSchema } from "./roles.js";
-import { FeedSchema, ItemSchema, LAYER_IDS, ShowSchema, type Item } from "./show.js";
+import { MAX_SPANS, SpanSchema } from "./rich.js";
+import {
+  FeedSchema,
+  ItemSchema,
+  LAYER_IDS,
+  ShowSchema,
+  TextFontSchema,
+  type Item,
+} from "./show.js";
+
+/**
+ * Un testo in modifica che accetta parole formattate (dal protocollo 1.22). Chi scrive il testo
+ * (l'editor di un plugin) lo descrive; chi formatta (il plugin annesso) chiede le modifiche e
+ * lo stato le porta a chi scrive. `applied` sale a ogni modifica chiesta da fuori, cosi' chi
+ * scrive sa quando adottare gli intervalli nuovi.
+ */
+export const RichSessionSchema = z.strictObject({
+  /** Il plugin che scrive il testo. */
+  owner: z.string().min(1).max(100),
+  /** Quale testo, tra quelli del plugin (es. l'id della slide). */
+  field: z.string().min(1).max(200),
+  text: z.string().max(200_000),
+  spans: z.array(SpanSchema).max(MAX_SPANS).optional(),
+  /** Tratto selezionato nel testo (posizioni in unita' UTF-16). */
+  selection: z.strictObject({
+    start: z.number().int().nonnegative(),
+    end: z.number().int().nonnegative(),
+  }),
+  /** Il carattere con cui il testo e' mostrato: dice se il corsivo esiste davvero. */
+  font: TextFontSchema.optional(),
+  applied: z.number().int().nonnegative(),
+});
+export type RichSession = z.infer<typeof RichSessionSchema>;
+
+/** Cosa cambiare nel tratto selezionato: lo stesso di `styleRange`. */
+export const RichChangeSchema = z.strictObject({
+  /** Multiplo della dimensione dello stile; `null` la toglie. */
+  size: z.number().min(0.5).max(3).nullable().optional(),
+  /** `"toggle"` accende se non c'e' dappertutto nel tratto, altrimenti spegne. */
+  bold: z.union([z.boolean(), z.literal("toggle")]).optional(),
+  italic: z.union([z.boolean(), z.literal("toggle")]).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .nullable()
+    .optional(),
+});
+export type RichChange = z.infer<typeof RichChangeSchema>;
 
 // Stato live (cap. 22): vive solo in memoria nel motore, mai nel file.
 
@@ -215,6 +262,12 @@ export const LiveStateSchema = z.strictObject({
    * Assente = spento.
    */
   textHidden: z.boolean().optional(),
+  /**
+   * Testo in modifica che accetta parole formattate (dal protocollo 1.22): l'editor di un
+   * plugin lo annuncia con `richtext.session`, un plugin annesso (la barra della formattazione)
+   * lo legge da qui e chiede le modifiche con `richtext.apply`. Non fa parte dello show.
+   */
+  richText: RichSessionSchema.optional(),
 });
 export type LiveState = z.infer<typeof LiveStateSchema>;
 

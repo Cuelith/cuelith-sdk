@@ -5,6 +5,8 @@ import {
   DisplayInfoSchema,
   PairedStationSchema,
   PluginStatusSchema,
+  RichChangeSchema,
+  RichSessionSchema,
   StateDocumentSchema,
 } from "./live.js";
 import { LicenseProofSchema, LicenseStatusSchema } from "./license.js";
@@ -268,6 +270,18 @@ export const EngineMethods = {
   "layer.clear": spec("cue", z.strictObject({ layer: LayerIdSchema }), Rev),
   /** «Solo sfondo» (dal protocollo 1.17): nasconde o rimostra il testo su tutte le uscite. */
   "live.textHidden": spec("cue", z.strictObject({ hidden: z.boolean() }), Rev),
+  /**
+   * Testo con parole formattate in modifica (dal protocollo 1.22). L'editor di un plugin
+   * descrive il testo e il tratto selezionato; il plugin annesso della formattazione chiede
+   * le modifiche; lo stato (`live.richText`) le porta a chi scrive.
+   */
+  "richtext.session": spec("edit", RichSessionSchema.omit({ applied: true }), Rev),
+  "richtext.end": spec(
+    "edit",
+    z.strictObject({ owner: z.string().min(1), field: z.string().min(1) }),
+    Rev,
+  ),
+  "richtext.apply": spec("edit", z.strictObject({ change: RichChangeSchema }), Rev),
   /** Messaggio su un'uscita (es. al relatore sul palco); testo vuoto = lo toglie. */
   "message.send": spec(
     "cue",

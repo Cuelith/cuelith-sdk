@@ -108,8 +108,11 @@ export const ContributesSchema = z.strictObject({
          * 1.6: mai al posto della zona centrale, che resta dell'operatore).
          * Un modulo con un pannello "side" e' "attivo" e ha la sua icona nella
          * colonna degli strumenti; gli altri lavorano in background ("passivi").
+         * "editor" (dal protocollo 1.23) = una barra di strumenti che la postazione mostra in
+         * cima alla finestra di ogni editor di plugin, quando l'editor ne ha bisogno (es. la
+         * formattazione delle parole); non ha icona e non e' una scheda.
          */
-        placement: z.enum(["side", "center"]).optional(),
+        placement: z.enum(["side", "center", "editor"]).optional(),
       }),
     )
     .optional(),
