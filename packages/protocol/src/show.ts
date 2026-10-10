@@ -111,6 +111,48 @@ export const CreditsSchema = z.strictObject({
 export type Credits = z.infer<typeof CreditsSchema>;
 
 /**
+ * Caratteri disponibili per il testo (dal protocollo 1.20). I primi tre sono quelli di sempre
+ * (titolo, testo, spaziato); gli altri sono inclusi nel programma, cosi' funzionano senza internet.
+ * Nome, gruppo e pesi di ciascuno li descrive il nucleo.
+ */
+export const TEXT_FONT_IDS = [
+  "display",
+  "body",
+  "mono",
+  "lora",
+  "merriweather",
+  "playfair-display",
+  "eb-garamond",
+  "crimson-pro",
+  "bitter",
+  "inter",
+  "montserrat",
+  "open-sans",
+  "nunito",
+  "raleway",
+  "work-sans",
+  "source-sans-3",
+  "dm-sans",
+  "libre-franklin",
+  "oswald",
+  "cinzel",
+  "bebas-neue",
+  "anton",
+  "abril-fatface",
+  "caveat",
+  "dancing-script",
+  "pacifico",
+  "ibm-plex-mono",
+] as const;
+export const TextFontSchema = z.enum(TEXT_FONT_IDS);
+export type TextFont = z.infer<typeof TextFontSchema>;
+
+/** Spessori del testo (dal protocollo 1.20); "normal" e "bold" sono quelli di prima. */
+export const TEXT_WEIGHTS = ["light", "normal", "medium", "semibold", "bold", "black"] as const;
+export const TextWeightSchema = z.enum(TEXT_WEIGHTS);
+export type TextWeight = z.infer<typeof TextWeightSchema>;
+
+/**
  * Modifiche dell'editor allo stile del testo di un solo elemento (dal protocollo 1.16,
  * decisione 0015): solo cio' che l'utente ha toccato. La dimensione e' una scala sullo
  * stile in uso, non un numero assoluto. Uno stile globale scelto dalla regia le sostituisce
@@ -118,14 +160,15 @@ export type Credits = z.infer<typeof CreditsSchema>;
  */
 export const TextOverrideSchema = z.strictObject({
   scale: z.number().min(0.5).max(2).optional(),
-  font: z.enum(["display", "body", "mono"]).optional(),
+  font: TextFontSchema.optional(),
   color: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
     .optional(),
   align: z.enum(["left", "center", "right"]).optional(),
   lineHeight: z.number().min(0.8).max(2.5).optional(),
-  weight: z.enum(["normal", "bold"]).optional(),
+  weight: TextWeightSchema.optional(),
+  italic: z.boolean().optional(),
   uppercase: z.boolean().optional(),
 });
 export type TextOverride = z.infer<typeof TextOverrideSchema>;
