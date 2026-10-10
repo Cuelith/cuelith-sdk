@@ -139,3 +139,56 @@ describe("trasformazioni che tolgono caratteri (protocollo 1.23)", () => {
     expect(remapSpans("abc", [{ start: 0, end: 3, bold: true }], [])).toEqual([]);
   });
 });
+
+describe("bordo e ombra delle parole (protocollo 1.24)", () => {
+  const outline = { width: 3, color: "#000000" };
+  const shadow = { offset: 4, blur: 6, color: "#112233" };
+
+  it("si accettano nel campo di testo e si rifiutano valori impossibili", () => {
+    const field = FieldSchema.parse({
+      kind: "text",
+      value: "Santo",
+      spans: [{ start: 0, end: 5, outline, shadow }],
+    });
+    expect(field.kind === "text" && field.spans).toEqual([{ start: 0, end: 5, outline, shadow }]);
+    expect(() =>
+      FieldSchema.parse({
+        kind: "text",
+        value: "Santo",
+        spans: [{ start: 0, end: 5, outline: { width: 99, color: "#000000" } }],
+      }),
+    ).toThrow();
+    expect(() =>
+      FieldSchema.parse({
+        kind: "text",
+        value: "Santo",
+        spans: [{ start: 0, end: 5, shadow: { offset: 1, blur: 1 } }],
+      }),
+    ).toThrow();
+  });
+
+  it("applicare e togliere il bordo e l'ombra a un tratto, senza toccare il resto", () => {
+    let spans = styleRange(text, [], 3, 10, { bold: true, outline, shadow });
+    expect(spans).toEqual([{ start: 3, end: 10, bold: true, outline, shadow }]);
+    spans = styleRange(text, spans, 5, 8, { outline: null });
+    expect(spans).toEqual([
+      { start: 3, end: 5, bold: true, outline, shadow },
+      { start: 5, end: 8, bold: true, shadow },
+      { start: 8, end: 10, bold: true, outline, shadow },
+    ]);
+    spans = styleRange(text, spans, 0, text.length, { shadow: null, outline: null, bold: false });
+    expect(spans).toEqual([]);
+  });
+
+  it("segmenti e spostamenti portano il bordo e l'ombra", () => {
+    const spans: Span[] = [{ start: 3, end: 10, outline: { width: 2, color: "#ff0000" } }];
+    expect(segmentsOf(text, spans)[1]).toEqual({
+      text: "Signore",
+      outline: { width: 2, color: "#FF0000" },
+    });
+    expect(shiftSpans(text, `Oh, ${text}`, spans)).toEqual([
+      { start: 7, end: 14, outline: { width: 2, color: "#FF0000" } },
+    ]);
+    expect(hasSpans({ text, spans: [{ start: 0, end: 3 }] })).toBe(false);
+  });
+});

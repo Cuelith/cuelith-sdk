@@ -13,6 +13,55 @@ export const SPAN_SIZE_MAX = 3;
 /** Quanti intervalli al massimo in un testo: oltre, e' un testo fatto male. */
 export const MAX_SPANS = 300;
 
+/** Bordo delle lettere di una parola (dal protocollo 1.24): spessore in pixel su un'uscita alta 1080. */
+export const SpanOutlineSchema = z.strictObject({
+  width: z.number().min(0.5).max(12),
+  color: Color,
+});
+export type SpanOutline = z.infer<typeof SpanOutlineSchema>;
+
+/** Ombra di una parola (dal protocollo 1.24): distanza e sfumatura in pixel su un'uscita alta 1080. */
+export const SpanShadowSchema = z.strictObject({
+  offset: z.number().min(0).max(20),
+  blur: z.number().min(0).max(20),
+  color: Color,
+});
+export type SpanShadow = z.infer<typeof SpanShadowSchema>;
+
+/**
+ * Scelte pronte per bordo e ombra (le barre di formattazione le offrono; ogni valore intermedio
+ * resta valido nel campo). Gli spessori sono in pixel su un'uscita alta 1080.
+ */
+export const OUTLINE_PRESETS = { thin: 2, medium: 4, thick: 8 } as const;
+export const SHADOW_PRESETS = {
+  light: { offset: 3, blur: 4 },
+  strong: { offset: 6, blur: 10 },
+} as const;
+export type OutlinePreset = keyof typeof OUTLINE_PRESETS;
+export type ShadowPreset = keyof typeof SHADOW_PRESETS;
+
+/** Quale scelta pronta e' quella piu' vicina a questo bordo (o niente se non c'e' bordo). */
+export function outlinePresetOf(outline: SpanOutline | undefined): OutlinePreset | undefined {
+  if (outline === undefined) return undefined;
+  let best: OutlinePreset = "thin";
+  for (const key of Object.keys(OUTLINE_PRESETS) as OutlinePreset[]) {
+    if (
+      Math.abs(OUTLINE_PRESETS[key] - outline.width) <
+      Math.abs(OUTLINE_PRESETS[best] - outline.width)
+    ) {
+      best = key;
+    }
+  }
+  return best;
+}
+
+export function shadowPresetOf(shadow: SpanShadow | undefined): ShadowPreset | undefined {
+  if (shadow === undefined) return undefined;
+  return shadow.offset + shadow.blur > SHADOW_PRESETS.light.offset + SHADOW_PRESETS.light.blur + 2
+    ? "strong"
+    : "light";
+}
+
 export const SpanSchema = z.strictObject({
   start: z.number().int().min(0),
   end: z.number().int().min(1),
@@ -21,6 +70,9 @@ export const SpanSchema = z.strictObject({
   bold: z.boolean().optional(),
   italic: z.boolean().optional(),
   color: Color.optional(),
+  /** Bordo e ombra della parola: sostituiscono quelli dello stile (dal protocollo 1.24). */
+  outline: SpanOutlineSchema.optional(),
+  shadow: SpanShadowSchema.optional(),
 });
 export type Span = z.infer<typeof SpanSchema>;
 
@@ -30,6 +82,8 @@ export interface SpanStyle {
   bold?: boolean | undefined;
   italic?: boolean | undefined;
   color?: string | undefined;
+  outline?: SpanOutline | undefined;
+  shadow?: SpanShadow | undefined;
 }
 
 /** Un testo con le sue parole formattate: e' tutto cio' che serve per disegnarlo o esportarlo. */
@@ -42,20 +96,32 @@ export interface Segment extends SpanStyle {
   readonly text: string;
 }
 
-const STYLE_KEYS = ["size", "bold", "italic", "color"] as const;
+const STYLE_KEYS = ["size", "bold", "italic", "color", "outline", "shadow"] as const;
 
 /** Stile "vuoto": uguale al resto del testo, quindi niente da ricordare. */
 const isPlain = (style: SpanStyle): boolean =>
   (style.size === undefined || style.size === 1) &&
   style.bold !== true &&
   style.italic !== true &&
-  style.color === undefined;
+  style.color === undefined &&
+  style.outline === undefined &&
+  style.shadow === undefined;
+
+const sameEffect = (a: object | undefined, b: object | undefined): boolean =>
+  a === b || (a !== undefined && b !== undefined && JSON.stringify(a) === JSON.stringify(b));
 
 const sameStyle = (a: SpanStyle, b: SpanStyle): boolean =>
   (a.size ?? 1) === (b.size ?? 1) &&
   (a.bold === true) === (b.bold === true) &&
   (a.italic === true) === (b.italic === true) &&
-  a.color === b.color;
+  a.color === b.color &&
+  sameEffect(a.outline, b.outline) &&
+  sameEffect(a.shadow, b.shadow);
+
+const upperColor = <T extends { color: string }>(effect: T): T => ({
+  ...effect,
+  color: effect.color.toUpperCase(),
+});
 
 /** Lo stile di ogni carattere del testo, ricavato dagli intervalli (l'ultimo in elenco vince). */
 function stylesOf(length: number, spans: readonly Span[] | undefined): SpanStyle[] {
@@ -89,6 +155,8 @@ function spansOf(styles: readonly SpanStyle[]): Span[] {
       if (style.bold === true) span.bold = true;
       if (style.italic === true) span.italic = true;
       if (style.color !== undefined) span.color = style.color.toUpperCase();
+      if (style.outline !== undefined) span.outline = upperColor(style.outline);
+      if (style.shadow !== undefined) span.shadow = upperColor(style.shadow);
       spans.push(span);
     }
     index = end;
@@ -120,6 +188,8 @@ export function segmentsOf(text: string, spans: readonly Span[] | undefined): Se
     if (span.bold === true) segment.bold = true;
     if (span.italic === true) segment.italic = true;
     if (span.color !== undefined) segment.color = span.color;
+    if (span.outline !== undefined) segment.outline = span.outline;
+    if (span.shadow !== undefined) segment.shadow = span.shadow;
     segments.push(segment);
     at = span.end;
   }
@@ -148,6 +218,9 @@ export function styleRange(
     bold?: boolean | "toggle";
     italic?: boolean | "toggle";
     color?: string | null;
+    /** `null` toglie il bordo / l'ombra dal tratto. */
+    outline?: SpanOutline | null;
+    shadow?: SpanShadow | null;
   },
 ): Span[] {
   const from = Math.max(0, Math.min(start, end));
@@ -168,6 +241,10 @@ export function styleRange(
     else if (change.size !== undefined) style.size = change.size;
     if (change.color === null) delete style.color;
     else if (change.color !== undefined) style.color = change.color.toUpperCase();
+    if (change.outline === null) delete style.outline;
+    else if (change.outline !== undefined) style.outline = upperColor(change.outline);
+    if (change.shadow === null) delete style.shadow;
+    else if (change.shadow !== undefined) style.shadow = upperColor(change.shadow);
     if (turnOn.bold !== undefined) style.bold = turnOn.bold ? true : undefined;
     if (turnOn.italic !== undefined) style.italic = turnOn.italic ? true : undefined;
   }

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { IdSchema, PluginIdSchema } from "./ids.js";
 import { LangSchema } from "./locale.js";
 import { RoleIdSchema } from "./roles.js";
-import { MAX_SPANS, SpanSchema } from "./rich.js";
+import { MAX_SPANS, SpanOutlineSchema, SpanSchema, SpanShadowSchema } from "./rich.js";
 import {
   FeedSchema,
   ItemSchema,
@@ -48,6 +48,9 @@ export const RichChangeSchema = z.strictObject({
     .regex(/^#[0-9A-Fa-f]{6}$/)
     .nullable()
     .optional(),
+  /** Bordo e ombra della parola (dal protocollo 1.24); `null` li toglie. */
+  outline: SpanOutlineSchema.nullable().optional(),
+  shadow: SpanShadowSchema.nullable().optional(),
 });
 export type RichChange = z.infer<typeof RichChangeSchema>;
 
